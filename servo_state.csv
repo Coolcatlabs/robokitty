@@ -1,0 +1,13 @@
+leg,joint,servo_id,inverted,offset_deg,ik_angle_deg,goal_raw,actual_raw,error,diff
+FrontLeft,Shoulder,8,True,0.0,85.1,221,217,0,4
+FrontLeft,Femur,10,False,-10.0,64.6,698,701,0,3
+FrontLeft,Leg,0,False,0.0,-119.6,104,102,0,2
+FrontRight,Shoulder,11,False,0.0,85.1,802,803,0,1
+FrontRight,Femur,9,True,0.0,64.6,291,286,0,5
+FrontRight,Leg,7,True,0.0,-119.6,919,917,0,2
+RearLeft,Shoulder,5,False,0.0,85.1,802,803,0,1
+RearLeft,Femur,3,True,0.0,64.6,291,290,0,1
+RearLeft,Leg,6,True,46.0,-119.6,762,757,0,5
+RearRight,Shoulder,2,True,-86.0,85.1,515,509,0,6
+RearRight,Femur,1,False,-5.0,64.6,715,718,0,3
+RearRight,Leg,4,False,49.0,-119.6,271,272,0,1
