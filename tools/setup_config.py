@@ -21,7 +21,6 @@ Usage:
 """
 
 import time
-import sys
 import argparse
 
 # AX-12A Protocol 1.0
