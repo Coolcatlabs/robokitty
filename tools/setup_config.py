@@ -33,9 +33,9 @@ INST_PING = 0x01
 ADDR_ID = 3
 ADDR_BAUD = 4
 ADDR_RETURN_DELAY = 5
-ADDR_CW_LIMIT = 6       # 2 bytes
-ADDR_CCW_LIMIT = 8      # 2 bytes
-ADDR_MAX_TORQUE = 14     # 2 bytes
+ADDR_CW_LIMIT = 6  # 2 bytes
+ADDR_CCW_LIMIT = 8  # 2 bytes
+ADDR_MAX_TORQUE = 14  # 2 bytes
 ADDR_STATUS_RETURN = 16
 ADDR_TORQUE_ENABLE = 24
 ADDR_LED = 25
@@ -44,15 +44,15 @@ ADDR_CCW_MARGIN = 27
 ADDR_CW_SLOPE = 28
 ADDR_CCW_SLOPE = 29
 ADDR_GOAL_POSITION = 30  # 2 bytes
-ADDR_MOVING_SPEED = 32   # 2 bytes
-ADDR_TORQUE_LIMIT = 34   # 2 bytes
+ADDR_MOVING_SPEED = 32  # 2 bytes
+ADDR_TORQUE_LIMIT = 34  # 2 bytes
 
 
 def checksum(data):
     return (~sum(data)) & 0xFF
 
 
-def build_packet(servo_id, instruction, params=b''):
+def build_packet(servo_id, instruction, params=b""):
     length = len(params) + 2
     body = bytes([servo_id, length, instruction]) + params
     chk = checksum(body)
@@ -63,10 +63,15 @@ def main():
     parser = argparse.ArgumentParser(description="Configure new AX-12A as ID 2")
     parser.add_argument("--port", default="/dev/ttyUSB0", help="Serial port")
     parser.add_argument("--baud", type=int, default=1000000, help="Baudrate")
-    parser.add_argument("--current-id", type=int, default=1,
-                        help="Current ID of the new servo (default: 1)")
-    parser.add_argument("--target-id", type=int, default=2,
-                        help="Target ID to set (default: 2)")
+    parser.add_argument(
+        "--current-id",
+        type=int,
+        default=1,
+        help="Current ID of the new servo (default: 1)",
+    )
+    parser.add_argument(
+        "--target-id", type=int, default=2, help="Target ID to set (default: 2)"
+    )
     args = parser.parse_args()
 
     try:
@@ -99,13 +104,13 @@ def main():
             timeout=0.1,
             bytesize=serial.EIGHTBITS,
             parity=serial.PARITY_NONE,
-            stopbits=serial.STOPBITS_ONE
+            stopbits=serial.STOPBITS_ONE,
         )
     except Exception as e:
         print(f"ERROR: Cannot open {args.port}: {e}")
         return
 
-    def send(servo_id, instruction, params=b''):
+    def send(servo_id, instruction, params=b""):
         packet = build_packet(servo_id, instruction, params)
         ser.write(packet)
         ser.flush()
@@ -135,19 +140,19 @@ def main():
             print(f"     Servo responded but has error flags: {error:#04x}")
     else:
         print(f"     No response from ID {current_id}.")
-        print(f"     Trying broadcast ping (ID 254)...")
+        print("     Trying broadcast ping (ID 254)...")
         resp = send(254, INST_PING)
         if len(resp) >= 6:
             found_id = resp[2]
             print(f"     Found servo at ID {found_id}!")
             current_id = found_id
         else:
-            print(f"     No servo found. Check wiring and power.")
+            print("     No servo found. Check wiring and power.")
             ser.close()
             return
 
     # Step 2: Disable torque before changing settings
-    print(f"  2. Disabling torque...")
+    print("  2. Disabling torque...")
     write_byte(current_id, ADDR_TORQUE_ENABLE, 0)
     time.sleep(0.1)
 
@@ -163,13 +168,13 @@ def main():
             print(f"     ID change successful! Servo now responds as ID {target_id}.")
         else:
             print(f"     WARNING: No response at new ID {target_id}.")
-            print(f"     Trying to ping new ID again...")
+            print("     Trying to ping new ID again...")
             time.sleep(0.5)
             resp = send(target_id, INST_PING)
             if len(resp) >= 6:
                 print(f"     OK, servo responds as ID {target_id}.")
             else:
-                print(f"     FAILED. Servo may still be at old ID.")
+                print("     FAILED. Servo may still be at old ID.")
                 ser.close()
                 return
     else:
@@ -178,21 +183,21 @@ def main():
     sid = target_id
 
     # Step 4: Set joint mode (CW limit=0, CCW limit=1023)
-    print(f"  4. Setting joint mode (position control)...")
+    print("  4. Setting joint mode (position control)...")
     write_word(sid, ADDR_CW_LIMIT, 0)
     time.sleep(0.05)
     write_word(sid, ADDR_CCW_LIMIT, 1023)
     time.sleep(0.05)
 
     # Step 5: Set max torque
-    print(f"  5. Setting max torque to 1023 (100%)...")
+    print("  5. Setting max torque to 1023 (100%)...")
     write_word(sid, ADDR_MAX_TORQUE, 1023)
     time.sleep(0.05)
     write_word(sid, ADDR_TORQUE_LIMIT, 1023)
     time.sleep(0.05)
 
     # Step 6: Set compliance margins and slopes
-    print(f"  6. Setting compliance (margins=1, slopes=32)...")
+    print("  6. Setting compliance (margins=1, slopes=32)...")
     write_byte(sid, ADDR_CW_MARGIN, 1)
     write_byte(sid, ADDR_CCW_MARGIN, 1)
     write_byte(sid, ADDR_CW_SLOPE, 32)
@@ -200,37 +205,37 @@ def main():
     time.sleep(0.05)
 
     # Step 7: Set return delay time
-    print(f"  7. Setting return delay to 50us...")
+    print("  7. Setting return delay to 50us...")
     write_byte(sid, ADDR_RETURN_DELAY, 25)  # 25 * 2us = 50us
     time.sleep(0.05)
 
     # Step 8: Enable torque
-    print(f"  8. Enabling torque...")
+    print("  8. Enabling torque...")
     write_byte(sid, ADDR_TORQUE_ENABLE, 1)
     time.sleep(0.1)
 
     # Step 9: Test movement
-    print(f"  9. Testing movement...")
-    print(f"     Moving to center (512)...")
+    print("  9. Testing movement...")
+    print("     Moving to center (512)...")
     write_word(sid, ADDR_MOVING_SPEED, 200)
     time.sleep(0.05)
     write_word(sid, ADDR_GOAL_POSITION, 512)
     time.sleep(1.5)
 
-    print(f"     Moving out (300)...")
+    print("     Moving out (300)...")
     write_word(sid, ADDR_GOAL_POSITION, 300)
     time.sleep(1.5)
 
-    print(f"     Moving in (700)...")
+    print("     Moving in (700)...")
     write_word(sid, ADDR_GOAL_POSITION, 700)
     time.sleep(1.5)
 
-    print(f"     Back to center (512)...")
+    print("     Back to center (512)...")
     write_word(sid, ADDR_GOAL_POSITION, 512)
     time.sleep(1.5)
 
     # Step 10: Flash LED to confirm
-    print(f"  10. Flashing LED to confirm...")
+    print("  10. Flashing LED to confirm...")
     for _ in range(5):
         write_byte(sid, ADDR_LED, 1)
         time.sleep(0.2)
@@ -242,16 +247,16 @@ def main():
     print()
     print("=" * 50)
     print(f"  DONE! Servo is now configured as ID {target_id}")
-    print(f"  Settings:")
+    print("  Settings:")
     print(f"    ID:         {target_id}")
-    print(f"    Mode:       Joint (position control)")
-    print(f"    CW Limit:   0")
-    print(f"    CCW Limit:  1023")
-    print(f"    Max Torque:  100%")
+    print("    Mode:       Joint (position control)")
+    print("    CW Limit:   0")
+    print("    CCW Limit:  1023")
+    print("    Max Torque:  100%")
     print(f"    Baudrate:   {args.baud} (unchanged)")
     print()
-    print(f"  You can now reconnect all servos and run")
-    print(f"  the walking controller.")
+    print("  You can now reconnect all servos and run")
+    print("  the walking controller.")
     print("=" * 50)
 
 
