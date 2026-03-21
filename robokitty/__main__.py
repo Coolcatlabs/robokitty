@@ -1,58 +1,22 @@
-#!/usr/bin/env python3
-"""
-RoboKitty3 - Quadruped IK Walking Controller
-=============================================
-Version: 2.1 | 2026-02-26
-
-Changes:
-    v2.1 - WALKING OVERHAUL after deep FK/IK analysis confirmed trajectory
-           and IK are mathematically correct but parameters prevent walking.
-           Swing now has 4 sub-phases: LIFT (raise vertically), TRAVEL
-           (forward at height), LOWER (descend to ground), PLANT (pause).
-           This ensures foot is fully on ground before stance push begins.
-           Body height 128->110mm (44% extension = more knee bend = more
-           vertical force for grip). Step height 35->18mm (less bounce on
-           landing). Step length 70->40mm (shorter reliable steps).
-           Removed ground press (unnecessary at lower height).
-    v2.0 - Ground press, removed simulation.
-    v1.9 - Walk/creep gait, body CoM shift.
-    v1.8 - Large gait swing, audit logging.
-    v1.7 - Applied calibrated offsets.
-    v1.0 - Initial release.
-
-12-DOF (3 per leg) inverse kinematics with walk/trot/pace gaits.
-AX-12A Dynamixel servos via half-duplex UART. Target: Raspberry Pi 4.
-
-Leg layout (top view, front facing up):
-    FL (8/10/0)     FR (11/9/7)
-    RL (5/3/6)      RR (2/1/4)
-
-Usage:
-    python3 RoboKitty3.py                  # Normal walk mode
-    python3 RoboKitty3.py --stand          # Stand only (calibration)
-    python3 RoboKitty3.py --diag           # IK diagnostics
-    python3 RoboKitty3.py --identify       # Flash servo LEDs
-    python3 RoboKitty3.py --read-pose      # Read positions (torque off)
-    python3 RoboKitty3.py --calibrate      # Pose by hand, compute offsets
-"""
-
 import math
 import time
 import threading
-import argparse
 import signal
 import sys
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, Optional
 from enum import Enum
 
-
+from ._cli import _cli_parser
+from ._constants import DEFAULT_PORT, DEFAULT_BAUD
+from . import __version__
 # ============================================================================
 # CONFIGURATION - ROBOKITTY ACTUAL MEASUREMENTS
 # ============================================================================
 
 @dataclass
 class LegDimensions:
+
     """Leg segment lengths in mm (shaft-center to shaft-center, shaft to foot)."""
     coxa_length: float = 58.0     # Shoulder shaft to femur pivot
     femur_length: float = 68.0    # Femur pivot to knee pivot
@@ -69,9 +33,9 @@ class BodyDimensions:
 @dataclass
 class GaitConfig:
     """Gait timing and geometry - tuned for 1.65kg on carpet."""
-    step_height: float = 18.0      # Foot lift mm (reduced: less bounce on landing)
-    step_length: float = 40.0      # Forward travel per step mm (small reliable steps)
-    cycle_time: float = 2.4        # Full gait cycle seconds (slow deliberate walk)
+    step_height: float = 25.0      # Foot lift mm (reliable clearance)
+    step_length: float = 80.0      # Forward travel per step mm (big enough for grip)
+    cycle_time: float = 1.6        # Full gait cycle seconds (faster for momentum)
     duty_factor: float = 0.75      # 0.75=walk/creep (1 foot up, 3 on ground)
     body_height: float = 110.0     # Standing height mm (lower = more knee bend = more grip)
     update_rate_hz: float = 50.0   # Control loop frequency
@@ -134,9 +98,7 @@ LEG_SERVO_CONFIG: Dict[LegID, List[ServoJointConfig]] = {
     ],
 }
 
-# Serial config
-DEFAULT_PORT = "/dev/ttyUSB0"
-DEFAULT_BAUD = 1000000
+
 
 
 # ============================================================================
@@ -260,32 +222,31 @@ class FootTrajectory:
         half_step = self.cfg.step_length * 0.5
 
         if phase < duty:
-            # === STANCE: foot flat on ground, slides backward ===
+            # === STANCE: foot flat on ground, slides forward (+x) ===
+            # Physical front is at -x (RL/RR side after front/rear swap).
+            # Stance slides foot in +x so body moves in -x = physical forward.
             t = phase / duty
-            dx = half_step * (1.0 - 2.0 * t) * speed
+            dx = half_step * (-1.0 + 2.0 * t) * speed
             dz = 0.0
         else:
             # === SWING: 4 sub-phases ===
             t = (phase - duty) / (1.0 - duty)  # 0 to 1 within swing
 
-            # Foot X position through swing: from -half_step to +half_step
-            # Use smooth S-curve so foot doesn't jerk at transitions
-            # Keep foot near rear during lift, advance during travel,
-            # arrive at front during lower
+            # Foot returns to -x (physical front) during swing
             if t < 0.25:
-                # LIFT: foot stays near rear X while rising
-                st = t / 0.25  # 0..1 within lift
-                x_progress = 0.1 * st  # barely moves forward (10% of travel)
+                # LIFT: foot stays near +x while rising
+                st = t / 0.25
+                x_progress = 0.1 * st
             elif t < 0.75:
-                # TRAVEL: foot moves forward at height
-                st = (t - 0.25) / 0.5  # 0..1 within travel
-                x_progress = 0.1 + 0.8 * st  # covers 80% of forward travel
+                # TRAVEL: foot moves to -x at height
+                st = (t - 0.25) / 0.5
+                x_progress = 0.1 + 0.8 * st
             else:
-                # LOWER + PLANT: foot at front position, coming down
-                st = (t - 0.75) / 0.25  # 0..1 within lower+plant
-                x_progress = 0.9 + 0.1 * st  # last 10% to final position
+                # LOWER + PLANT: foot at -x position, coming down
+                st = (t - 0.75) / 0.25
+                x_progress = 0.9 + 0.1 * st
 
-            dx = half_step * (-1.0 + 2.0 * x_progress) * speed
+            dx = half_step * (1.0 - 2.0 * x_progress) * speed
 
             # Foot Z (height) through swing
             if t < 0.25:
@@ -390,6 +351,10 @@ class AX12Interface:
 
     ADDR_TORQUE_ENABLE = 24
     ADDR_LED = 25
+    ADDR_CW_COMPLIANCE_MARGIN = 26
+    ADDR_CCW_COMPLIANCE_MARGIN = 27
+    ADDR_CW_COMPLIANCE_SLOPE = 28
+    ADDR_CCW_COMPLIANCE_SLOPE = 29
     ADDR_GOAL_POSITION = 30
     ADDR_MOVING_SPEED = 32
     ADDR_PRESENT_POSITION = 36
@@ -626,6 +591,18 @@ class AX12Interface:
                           bytes([self.ADDR_MOVING_SPEED, speed & 0xFF, (speed >> 8) & 0xFF]))
         time.sleep(0.001)
 
+    def set_compliance(self, servo_id: int, margin: int = 0, slope: int = 32):
+        """Set compliance margin and slope. margin=0 eliminates dead zone."""
+        self._send_packet(servo_id, self.INST_WRITE,
+                          bytes([self.ADDR_CW_COMPLIANCE_MARGIN, margin]))
+        self._send_packet(servo_id, self.INST_WRITE,
+                          bytes([self.ADDR_CCW_COMPLIANCE_MARGIN, margin]))
+        self._send_packet(servo_id, self.INST_WRITE,
+                          bytes([self.ADDR_CW_COMPLIANCE_SLOPE, slope]))
+        self._send_packet(servo_id, self.INST_WRITE,
+                          bytes([self.ADDR_CCW_COMPLIANCE_SLOPE, slope]))
+        time.sleep(0.001)
+
     def sync_write_positions(self, positions: Dict[int, int]):
         """
         Write positions to all servos in ONE packet.
@@ -768,16 +745,16 @@ class QuadrupedWalker:
         shoulder_ids = [LEG_SERVO_CONFIG[lid][0].servo_id for lid in LegID]
         for sid in all_ids:
             self.servos.enable_torque(sid, True)
+            # Zero compliance margin: eliminates dead zone so servos
+            # apply force even for sub-unit position changes.
+            # Slope 32 = moderate stiffness (good balance of hold vs compliance)
+            self.servos.set_compliance(sid, margin=0, slope=32)
             if sid in shoulder_ids:
-                # Shoulders: moderate speed for better position holding
-                # Speed 0 on AX-12A = max speed but weaker hold
-                # Moderate speed gives better compliance/holding
                 self.servos.set_moving_speed(sid, 300)
             else:
-                # Femur/tibia: max speed to keep up with 50Hz updates
                 self.servos.set_moving_speed(sid, 0)
             time.sleep(0.003)
-        print(f"All {len(all_ids)} servos enabled (shoulders=300, legs=max)")
+        print(f"All {len(all_ids)} servos enabled (compliance=0, shoulders=300, legs=max)")
         return True
 
     def disconnect(self):
@@ -1210,12 +1187,12 @@ class QuadrupedWalker:
             self.gait_phases = dict(GAIT_PHASES[gait])
             if gait == GaitType.WALK:
                 self.gait_cfg.duty_factor = 0.75
-                self.gait_cfg.cycle_time = 2.4
-                self.gait_cfg.step_length = 40.0
+                self.gait_cfg.cycle_time = 1.6
+                self.gait_cfg.step_length = 80.0
             else:
                 self.gait_cfg.duty_factor = 0.5
-                self.gait_cfg.cycle_time = 1.6
-                self.gait_cfg.step_length = 50.0
+                self.gait_cfg.cycle_time = 1.2
+                self.gait_cfg.step_length = 60.0
         print(f"Gait: {gait.value}")
 
     def set_speed(self, speed: float):
@@ -1544,29 +1521,9 @@ def print_diagnostics(walker: QuadrupedWalker):
     print()
 
 
-# ============================================================================
-# MAIN
-# ============================================================================
-
 def main():
-    parser = argparse.ArgumentParser(description="RoboKitty3 IK Walking Controller")
-    parser.add_argument("--port", default=DEFAULT_PORT,
-                        help=f"Serial port (default: {DEFAULT_PORT})")
-    parser.add_argument("--baud", type=int, default=DEFAULT_BAUD,
-                        help=f"Baudrate (default: {DEFAULT_BAUD})")
-    parser.add_argument("--dir-pin", type=int, default=None,
-                        help="GPIO BCM pin for half-duplex direction")
-    parser.add_argument("--stand", action="store_true",
-                        help="Stand only (calibration mode)")
-    parser.add_argument("--diag", action="store_true",
-                        help="Print IK diagnostics and exit")
-    parser.add_argument("--identify", action="store_true",
-                        help="Flash each servo LED to verify wiring")
-    parser.add_argument("--read-pose", action="store_true",
-                        help="Read current servo positions (torque off, pose manually)")
-    parser.add_argument("--calibrate", action="store_true",
-                        help="Pose legs by hand, read positions, compute offsets")
-    args = parser.parse_args()
+
+    args = _cli_parser()
 
     walker = QuadrupedWalker(
         port=args.port,
@@ -1665,4 +1622,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
