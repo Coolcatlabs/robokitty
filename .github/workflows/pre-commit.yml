@@ -3,7 +3,7 @@ name: pre-commit
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [dev]
 
 jobs:
   pre-commit:
@@ -16,6 +16,7 @@ jobs:
       with:
         python-version: '3.12'
         cache: 'pip'
+        cache-dependency-path: 'setup.py'
 
     - name: Run pre-commit
       uses: pre-commit/action@v3.0.1

@@ -1,6 +1,6 @@
 import argparse
 
-from ._constants import DEFAULT_PORT, DEFAULT_BAUD
+from ._robokitty import DEFAULT_PORT, DEFAULT_BAUD
 from . import __version__
 
 
