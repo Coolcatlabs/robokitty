@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Tuple, Optional
 from enum import Enum
 
+from . import _log
 from ._cli import _cli_parser
 from ._constants import DEFAULT_PORT, DEFAULT_BAUD
 # ============================================================================
@@ -413,14 +414,14 @@ class AX12Interface:
                     GPIO.output(self.direction_pin, GPIO.LOW)
                     self._gpio_setup = True
                 except ImportError:
-                    print("WARN: RPi.GPIO not available, direction pin ignored")
+                    _log.warning("RPi.GPIO not available, direction pin ignored")
 
             self._connected = True
-            print(f"AX-12A bus connected: {self.port_path} @ {self.baudrate}")
+            _log.info(f"AX-12A bus connected: {self.port_path} @ {self.baudrate}")
             return True
 
         except Exception as e:
-            print(f"ERROR connecting to {self.port_path}: {e}")
+            _log.error(f"ERROR connecting to {self.port_path}: {e}")
             return False
 
     def _set_tx_mode(self):
@@ -675,7 +676,7 @@ class AX12Interface:
                 GPIO.cleanup(self.direction_pin)
             except:  # noqa E722
                 pass
-        print("AX-12A bus disconnected")
+        _log.info("AX-12A bus disconnected")
 
     @property
     def connected(self):
@@ -795,7 +796,7 @@ class QuadrupedWalker:
             else:
                 self.servos.set_moving_speed(sid, 0)
             time.sleep(0.003)
-        print(
+        _log.info(
             f"All {len(all_ids)} servos enabled (compliance=0, shoulders=300, legs=max)"
         )
         return True
@@ -818,9 +819,9 @@ class QuadrupedWalker:
             with open(fname, "w") as f:
                 f.write(self._audit_header + "\n")
                 f.write("\n".join(self._audit_log) + "\n")
-            print(f"Audit log saved: {fname} ({len(self._audit_log)} rows)")
+            _log.info(f"Audit log saved: {fname} ({len(self._audit_log)} rows)")
         except Exception as e:
-            print(f"Failed to save audit log: {e}")
+            _log.error(f"Failed to save audit log: {e}")
 
     def _all_servo_ids(self) -> List[int]:
         ids = []
@@ -831,14 +832,16 @@ class QuadrupedWalker:
 
     def diagnose_servo(self, servo_id: int):
         """Full diagnostic for a servo - reads error register, voltage, temp."""
-        print(f"\n  === Diagnosing Servo ID {servo_id} ===")
+        _log.info(f"\n  === Diagnosing Servo ID {servo_id} ===")
 
         # Step 1: Read error register
-        print("  1. Reading error register...")
+        _log.info("  1. Reading error register...")
         err = self.servos.read_error(servo_id)
         if err is None:
-            print("     FAILED to read - servo not responding on bus!")
-            print("     Check: wiring, power, servo ID, baud rate")
+            _log.error(
+                "     FAILED to read - servo not responding on bus!"
+                "     Check: wiring, power, servo ID, baud rate"
+            )
         else:
             error_names = [
                 (0, "Input Voltage"),
@@ -850,56 +853,58 @@ class QuadrupedWalker:
                 (6, "Instruction"),
             ]
             if err == 0:
-                print("     Error register: 0x00 (no errors)")
+                _log.info("     Error register: 0x00 (no errors)")
             else:
-                print(f"     Error register: 0x{err:02X}")
+                _log.info(f"     Error register: 0x{err:02X}")
                 for bit, name in error_names:
                     if err & (1 << bit):
-                        print(f"     ** {name} Error (bit {bit}) **")
+                        _log.info(f"     ** {name} Error (bit {bit}) **")
 
         # Step 2: Read voltage
-        print("  2. Reading voltage...")
+        _log.info("  2. Reading voltage...")
         volts = self.servos.read_voltage(servo_id)
         if volts is not None:
             status = "OK" if 9.0 <= volts <= 12.6 else "WARNING"
-            print(f"     Voltage: {volts:.1f}V ({status})")
+            _log.info(f"     Voltage: {volts:.1f}V ({status})")
         else:
-            print("     Failed to read voltage")
+            _log.error("     Failed to read voltage")
 
         # Step 3: Read temperature
-        print("  3. Reading temperature...")
+        _log.info("  3. Reading temperature...")
         temp = self.servos.read_temperature(servo_id)
         if temp is not None:
             status = "OK" if temp < 65 else "HOT!" if temp < 75 else "CRITICAL!"
-            print(f"     Temperature: {temp}C ({status})")
+            _log.info(f"     Temperature: {temp}C ({status})")
         else:
-            print("     Failed to read temperature")
+            _log.error("     Failed to read temperature")
 
         # Step 4: Read current position
-        print("  4. Reading position...")
+        _log.info("  4. Reading position...")
         pos = self.servos.read_position(servo_id)
         if pos is not None:
-            print(f"     Position: {pos} (center=512)")
+            _log.info(f"     Position: {pos} (center=512)")
         else:
-            print("     Failed to read position")
+            _log.error("     Failed to read position")
 
         # Step 5: Attempt recovery
-        print("  5. Attempting error clear (torque cycle + LED off)...")
+        _log.info("  5. Attempting error clear (torque cycle + LED off)...")
         self.servos.clear_error(servo_id)
         time.sleep(0.5)
 
         # Re-read error
         err2 = self.servos.read_error(servo_id)
         if err2 is not None and err2 == 0:
-            print("     Error cleared successfully!")
+            _log.info("     Error cleared successfully!")
         elif err2 is not None:
-            print(f"     Error persists: 0x{err2:02X}")
-            print("     Try: power cycle, check for mechanical bind, reduce load")
+            _log.error(
+                f"     Error persists: 0x{err2:02X}"
+                "Try: power cycle, check for mechanical bind, reduce load"
+            )
         else:
-            print("     Still can't communicate with servo")
+            _log.error("     Still can't communicate with servo")
 
         # Step 6: Try position command
-        print("  6. Setting joint mode and testing movement...")
+        _log.info("  6. Setting joint mode and testing movement...")
         self.servos._send_packet(servo_id, 0x03, bytes([6, 0x00, 0x00]))
         time.sleep(0.01)
         self.servos._send_packet(servo_id, 0x03, bytes([8, 0xFF, 0x03]))
@@ -908,22 +913,22 @@ class QuadrupedWalker:
         self.servos.set_moving_speed(servo_id, 200)
         time.sleep(0.1)
 
-        print("     Moving to center (512)...")
+        _log.info("     Moving to center (512)...")
         self.servos.sync_write_positions({servo_id: 512})
         time.sleep(1.5)
-        print("     Moving to 350...")
+        _log.info("     Moving to 350...")
         self.servos.sync_write_positions({servo_id: 350})
         time.sleep(1.5)
-        print("     Moving to 650...")
+        _log.info("     Moving to 650...")
         self.servos.sync_write_positions({servo_id: 650})
         time.sleep(1.5)
 
         # Return to standing position (not center!)
-        print("  7. Returning to standing pose...")
+        _log.info("  7. Returning to standing pose...")
         self.stand()
         time.sleep(1.0)
 
-        print(f"\n  === Diagnosis complete for servo ID {servo_id} ===")
+        _log.info(f"\n  === Diagnosis complete for servo ID {servo_id} ===")
 
     def scan_all_errors(self):
         """Read error register, voltage, and temperature from every servo."""
@@ -969,13 +974,13 @@ class QuadrupedWalker:
                 e_str = f"0x{err:02X}" if err is not None else "???"
 
                 status = " ** " + ", ".join(parts) + " **" if parts else " OK"
-                print(
+                _log.info(
                     f"    {leg_id.value:12s} {joint_names[i]:8s} ID{sid:2d}: "
                     f"err={e_str} {v_str} {t_str} {p_str}{status}"
                 )
 
         if not any_error:
-            print("    All servos healthy!")
+            _log.info("    All servos healthy!")
 
     def test_rr_shoulder(self):
         """Sweep RR shoulder servo (ID 2) in and out to test it."""
@@ -1005,7 +1010,7 @@ class QuadrupedWalker:
 
         for label, pos in positions:
             pos = max(0, min(1023, pos))
-            print(f"    RR Shoulder -> {label} (raw={pos})")
+            _log.info(f"    RR Shoulder -> {label} (raw={pos})")
             self.servos.sync_write_positions({sid: pos})
             time.sleep(1.0)
 
@@ -1018,7 +1023,7 @@ class QuadrupedWalker:
             configs = LEG_SERVO_CONFIG[leg_id]
             joint_names = ["Shoulder", "Femur", "Leg"]
             for cfg, name in zip(configs, joint_names):
-                print(f"  Flashing: {leg_id.value} {name} (ID {cfg.servo_id})")
+                _log.info(f"  Flashing: {leg_id.value} {name} (ID {cfg.servo_id})")
                 self.servos.identify_servo(cfg.servo_id, flashes=10)
                 time.sleep(0.5)
 
@@ -1029,10 +1034,13 @@ class QuadrupedWalker:
         Use this with torque OFF to manually pose the robot then capture
         the exact servo positions as a calibration reference.
         """
-        print("\n" + "=" * 62)
-        print("  READING CURRENT SERVO POSITIONS")
-        print("  (Torque should be OFF - manually pose legs first)")
-        print("=" * 62)
+        _border = "=" * 62
+        _log.info(
+            f"\n{_border}\n"
+            "  READING CURRENT SERVO POSITIONS\n"
+            "  (Torque should be OFF - manually pose legs first)\n"
+            f"{_border}"
+        )
 
         joint_names = ["Shoulder", "Femur   ", "Leg     "]
         all_raw = {}
@@ -1041,12 +1049,12 @@ class QuadrupedWalker:
         for leg_id in LegID:
             configs = LEG_SERVO_CONFIG[leg_id]
             is_front = self.leg_is_front[leg_id]
-            print(f"\n  {leg_id.value} ({'FRONT' if is_front else 'REAR'}):")
+            _log.info(f"\n  {leg_id.value} ({'FRONT' if is_front else 'REAR'}):")
 
-            for i, (cfg, name) in enumerate(zip(configs, joint_names)):
+            for _, (cfg, name) in enumerate(zip(configs, joint_names)):
                 raw = self.servos.read_position(cfg.servo_id)
                 if raw is None:
-                    print(f"    {name} ID{cfg.servo_id:2d}:  ** READ FAILED **")
+                    _log.error(f"    {name} ID{cfg.servo_id:2d}:  ** READ FAILED **")
                     continue
 
                 # Reverse the angle_to_raw conversion to get joint angle
@@ -1065,39 +1073,39 @@ class QuadrupedWalker:
                 all_angles[cfg.servo_id] = angle
 
                 inv_str = " INV" if cfg.inverted else ""
-                print(
+                _log.info(
                     f"    {name} ID{cfg.servo_id:2d}:  raw={raw:4d}  "
                     f"angle={angle:+7.1f}deg{inv_str}"
                 )
 
         # Summary table for easy copy-paste
-        print("\n" + "-" * 62)
-        print("  RAW POSITION SUMMARY (for copy-paste into config):")
-        print("-" * 62)
+        _log.info(
+            f"\n{_border}\n"
+            "  RAW POSITION SUMMARY (for copy-paste into config):\n"
+            f"{_border}"
+        )
         for leg_id in LegID:
             configs = LEG_SERVO_CONFIG[leg_id]
             vals = []
             for cfg in configs:
                 r = all_raw.get(cfg.servo_id)
                 vals.append(f"{r:4d}" if r is not None else " ???")
-            print(
+            _log.info(
                 f"  {leg_id.value:12s}:  Shoulder={vals[0]}  "
                 f"Femur={vals[1]}  Leg={vals[2]}"
             )
 
-        print("\n  ANGLE SUMMARY:")
-        print("-" * 62)
+        _log.info(f"\n  ANGLE SUMMARY: \n{_border}")
         for leg_id in LegID:
             configs = LEG_SERVO_CONFIG[leg_id]
             vals = []
             for cfg in configs:
                 a = all_angles.get(cfg.servo_id)
                 vals.append(f"{a:+7.1f}" if a is not None else "   ???")
-            print(
+            _log.info(
                 f"  {leg_id.value:12s}:  Shoulder={vals[0]}  "
                 f"Femur={vals[1]}  Leg={vals[2]}"
             )
-        print()
 
     def calibrate_standing(self):
         """
@@ -1106,9 +1114,8 @@ class QuadrupedWalker:
 
         After running, copy the suggested offsets into LEG_SERVO_CONFIG.
         """
-        print("\n" + "=" * 62)
-        print("  READING POSED POSITIONS & COMPUTING OFFSETS")
-        print("=" * 62)
+        _border = "=" * 62
+        _log.info(f"\n{_border}  READING POSED POSITIONS & COMPUTING OFFSETS{_border}")
 
         joint_names = ["Shoulder", "Femur   ", "Leg     "]
         suggested_offsets = {}
@@ -1119,12 +1126,12 @@ class QuadrupedWalker:
             foot = self.neutral_feet[leg_id]
             ik_angles = self.ik.solve(*foot, is_front=is_front)
 
-            print(f"\n  {leg_id.value} ({'FRONT' if is_front else 'REAR'}):")
+            _log.info(f"\n  {leg_id.value} ({'FRONT' if is_front else 'REAR'}):")
 
             for i, (cfg, name) in enumerate(zip(configs, joint_names)):
                 raw = self.servos.read_position(cfg.servo_id)
                 if raw is None:
-                    print(f"    {name} ID{cfg.servo_id:2d}:  ** READ FAILED **")
+                    _log.error(f"    {name} ID{cfg.servo_id:2d}:  ** READ FAILED **")
                     continue
 
                 # What angle does the servo's current raw position represent?
@@ -1155,7 +1162,7 @@ class QuadrupedWalker:
                 inv_str = " INV" if cfg.inverted else ""
                 change = needed_offset - current_offset
 
-                print(
+                _log.info(
                     f"    {name} ID{cfg.servo_id:2d}:  raw={raw:4d}  "
                     f"actual={actual_angle:+7.1f}  ik_target={ik_angle:+7.1f}  "
                     f"offset: {current_offset:+.1f} -> {needed_offset:+.1f} "
@@ -1165,28 +1172,30 @@ class QuadrupedWalker:
                 suggested_offsets[(leg_id, i)] = needed_offset
 
         # Print copy-paste config
-        print("\n" + "=" * 62)
-        print("  SUGGESTED LEG_SERVO_CONFIG (copy-paste into code):")
-        print("=" * 62)
+        _log.info(
+            f"\n{_border}\n"
+            "  SUGGESTED LEG_SERVO_CONFIG (copy-paste into code):\n"
+            f"{_border}"
+        )
         for leg_id in LegID:
             configs = LEG_SERVO_CONFIG[leg_id]
             jnames = ["Shoulder", "Femur", "Leg"]
-            print(f"    LegID.{leg_id.name}: [")
+            _log.info(f"    LegID.{leg_id.name}: [")
             for i, (cfg, jn) in enumerate(zip(configs, jnames)):
                 off = suggested_offsets.get((leg_id, i), cfg.offset_deg)
                 off_rounded = round(off, 1)
                 inv_str = "True " if cfg.inverted else "False"
-                print(
+                _log.info(
                     f"        ServoJointConfig(servo_id={cfg.servo_id:<2d}, "
                     f"offset_deg={off_rounded:+6.1f}, inverted={inv_str}),"
                     f"  # {jn}"
                 )
-            print("    ],")
+            _log.info("    ],")
 
-        print()
-        print("  Copy the offsets above into LEG_SERVO_CONFIG in the code.")
-        print("  Then run --stand to verify the pose matches.")
-        print()
+        _log.info()
+        _log.info("  Copy the offsets above into LEG_SERVO_CONFIG in the code.")
+        _log.info("  Then run --stand to verify the pose matches.")
+        _log.info()
 
     def test_joints(self):
         """
@@ -1197,7 +1206,7 @@ class QuadrupedWalker:
         joint_names = ["Shoulder", "Femur", "Leg"]
 
         # First center ALL servos
-        print("\n  Centering all servos to 512 (neutral)...")
+        _log.info("\n  Centering all servos to 512 (neutral)...")
         center_positions = {}
         for leg_id in LegID:
             for cfg in LEG_SERVO_CONFIG[leg_id]:
@@ -1212,20 +1221,20 @@ class QuadrupedWalker:
                 self.servos.sync_write_positions(center_positions)
                 time.sleep(0.5)
 
-                print(f"\n  {leg_id.value} {joint_names[i]} (ID {cfg.servo_id})")
-                print("    Moving POSITIVE 30 degrees from center...")
+                _log.info(f"\n  {leg_id.value} {joint_names[i]} (ID {cfg.servo_id})")
+                _log.info("    Moving POSITIVE 30 degrees from center...")
 
                 # Move this one servo +30 degrees from center
                 test_pos = 512 + int(30 * AX12_DEG_TO_UNITS)  # ~614
                 self.servos.sync_write_positions({cfg.servo_id: test_pos})
                 time.sleep(1.0)
 
-                print(f"    Raw position: 512 -> {test_pos}")
-                print(f"    Currently inverted: {cfg.inverted}")
-                print("    What did the servo do?")
-                print("      Shoulder: should swing FORWARD")
-                print("      Femur:    should swing leg DOWN/FORWARD")
-                print("      Leg:      should swing foot DOWN/FORWARD")
+                _log.info(f"    Raw position: 512 -> {test_pos}")
+                _log.info(f"    Currently inverted: {cfg.inverted}")
+                _log.info("    What did the servo do?")
+                _log.info("      Shoulder: should swing FORWARD")
+                _log.info("      Femur:    should swing leg DOWN/FORWARD")
+                _log.info("      Leg:      should swing foot DOWN/FORWARD")
 
                 input("    Press Enter for next joint...")
 
@@ -1233,13 +1242,13 @@ class QuadrupedWalker:
                 self.servos.sync_write_positions({cfg.servo_id: 512})
                 time.sleep(0.5)
 
-        print("\n  Joint test complete. Report which ones went the wrong way.")
+        _log.info("\n  Joint test complete. Report which ones went the wrong way.")
         """Flash each servo LED one at a time with label."""
         for leg_id in LegID:
             configs = LEG_SERVO_CONFIG[leg_id]
             joint_names = ["Shoulder", "Femur", "Leg"]
             for cfg, name in zip(configs, joint_names):
-                print(f"  Flashing: {leg_id.value} {name} (ID {cfg.servo_id})")
+                _log.info(f"  Flashing: {leg_id.value} {name} (ID {cfg.servo_id})")
                 self.servos.identify_servo(cfg.servo_id, flashes=10)
                 time.sleep(0.5)
 
@@ -1255,7 +1264,7 @@ class QuadrupedWalker:
                 self.gait_cfg.duty_factor = 0.5
                 self.gait_cfg.cycle_time = 1.2
                 self.gait_cfg.step_length = 60.0
-        print(f"Gait: {gait.value}")
+        _log.info(f"Gait: {gait.value}")
 
     def set_speed(self, speed: float):
         with self._lock:
@@ -1274,7 +1283,7 @@ class QuadrupedWalker:
             for i, cfg in enumerate(LEG_SERVO_CONFIG[leg_id]):
                 positions[cfg.servo_id] = angle_to_raw(angles[i], cfg)
         self.servos.sync_write_positions(positions)
-        print("Standing")
+        _log.info("Standing")
 
     def smooth_stand(self, duration: float = 1.5):
         """Gradually move to standing - prevents jerky startup."""
@@ -1294,7 +1303,7 @@ class QuadrupedWalker:
         self._phase = 0.0
         self._walk_thread = threading.Thread(target=self._control_loop, daemon=True)
         self._walk_thread.start()
-        print("Walking controller started")
+        _log.info("Walking controller started")
 
     def stop(self):
         if not self._running:
@@ -1304,7 +1313,7 @@ class QuadrupedWalker:
             self._walk_thread.join(timeout=2.0)
             self._walk_thread = None
         self.smooth_stand(0.8)
-        print("Walking controller stopped")
+        _log.info("Walking controller stopped")
 
     def _control_loop(self):
         """Main walking loop at configured update rate."""
@@ -1367,7 +1376,7 @@ class QuadrupedWalker:
                     # Override coxa with locked standing angle to prevent drift
                     angles = (self.locked_coxa_angles[leg_id], angles[1], angles[2])
                 except Exception as e:
-                    print(f"IK fail {leg_id.value}: {e}")
+                    _log.error(f"IK fail {leg_id.value}: {e}")
                     continue
 
                 for i, cfg in enumerate(LEG_SERVO_CONFIG[leg_id]):
@@ -1411,21 +1420,26 @@ class QuadrupedWalker:
 
 def run_keyboard_control(walker: QuadrupedWalker):
     """Terminal keyboard control for testing."""
-    print("\n" + "=" * 50)
-    print("  ROBOKITTY3 KEYBOARD CONTROL")
-    print("=" * 50)
-    print("  w/s     = forward / backward")
-    print("  a/d     = turn left / right")
-    print("  SPACE   = stop movement")
-    print("  1       = trot gait")
-    print("  2       = walk gait (slow, stable)")
-    print("  3       = pace gait")
-    print("  i       = identify servos (flash LEDs)")
-    print("  t       = test RR shoulder servo (sweep in/out)")
-    print("  r       = diagnose RR shoulder + scan all servos")
-    print("  p       = read current servo positions")
-    print("  q       = quit")
-    print("=" * 50 + "\n")
+    border = "=" * 50
+    menu_content = (
+        f"\n{border}\n"
+        "  ROBOKITTY3 KEYBOARD CONTROL\n"
+        f"{border}\n"
+        "  w/s     = forward / backward\n"
+        "  a/d     = turn left / right\n"
+        "  SPACE   = stop movement\n"
+        "  1       = trot gait\n"
+        "  2       = walk gait (slow, stable)\n"
+        "  3       = pace gait\n"
+        "  i       = identify servos (flash LEDs)\n"
+        "  t       = test RR shoulder servo (sweep in/out)\n"
+        "  r       = diagnose RR shoulder + scan all servos\n"
+        "  p       = read current servo positions\n"
+        "  q       = quit\n"
+        f"{border}\n"
+    )
+
+    _log.info(menu_content)
 
     speed = 0.0
     turn = 0.0
@@ -1463,9 +1477,9 @@ def run_keyboard_control(walker: QuadrupedWalker):
                     elif key == "3":
                         walker.set_gait(GaitType.PACE)
                     elif key == "i":
-                        print("\n  Identifying servos...")
+                        _log.error("\n  Identifying servos...")
                         walker.identify_all_servos()
-                        print("  Done!\n")
+                        _log.error("  Done!\n")
                     elif key == "t":
                         was_running = walker._running
                         if was_running:
@@ -1473,9 +1487,11 @@ def run_keyboard_control(walker: QuadrupedWalker):
                             if walker._walk_thread:
                                 walker._walk_thread.join(timeout=2.0)
                             time.sleep(0.1)
-                        print("\n  Testing RR Shoulder (ID 2) - sweeping in/out...")
+                        _log.error(
+                            "\n  Testing RR Shoulder (ID 2) - sweeping in/out..."
+                        )
                         walker.test_rr_shoulder()
-                        print("  Done!\n")
+                        _log.error("  Done!\n")
                         if was_running:
                             walker._running = True
                             walker._walk_thread = threading.Thread(
@@ -1490,10 +1506,10 @@ def run_keyboard_control(walker: QuadrupedWalker):
                             if walker._walk_thread:
                                 walker._walk_thread.join(timeout=2.0)
                             time.sleep(0.1)
-                        print("\n  Diagnosing RR Shoulder (ID 2)...")
+                        _log.info("\n  Diagnosing RR Shoulder (ID 2)...")
                         walker.diagnose_servo(2)
                         # Also scan all servos for errors
-                        print("\n  Scanning ALL servos for errors...")
+                        _log.info("\n  Scanning ALL servos for errors...")
                         walker.scan_all_errors()
                         if was_running:
                             walker._running = True
@@ -1501,7 +1517,7 @@ def run_keyboard_control(walker: QuadrupedWalker):
                                 target=walker._control_loop, daemon=True
                             )
                             walker._walk_thread.start()
-                        print("  Done!\n")
+                        _log.info("  Done!\n")
                     elif key == "p":
                         was_running = walker._running
                         if was_running:
@@ -1509,7 +1525,7 @@ def run_keyboard_control(walker: QuadrupedWalker):
                             if walker._walk_thread:
                                 walker._walk_thread.join(timeout=2.0)
                             time.sleep(0.1)
-                        print("\n  Reading current positions...")
+                        _log.info("\n  Reading current positions...")
                         walker.read_all_positions()
                         if was_running:
                             walker._running = True
@@ -1529,7 +1545,7 @@ def run_keyboard_control(walker: QuadrupedWalker):
             termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
 
     except ImportError:
-        print("(Line-input mode - type command and press Enter)")
+        _log.info("(Line-input mode - type command and press Enter)")
         while True:
             try:
                 cmd = input(f"[spd={speed:+.1f} trn={turn:+.1f}] > ").strip().lower()
@@ -1565,22 +1581,21 @@ def run_keyboard_control(walker: QuadrupedWalker):
 
 def print_diagnostics(walker: QuadrupedWalker):
     """Print IK solution for standing pose."""
-    print("\n--- RoboKitty3 Standing Pose Diagnostics ---")
-    print(
+    _log.info("\n--- RoboKitty3 Standing Pose Diagnostics ---")
+    _log.info(
         f"Leg dims: coxa={walker.leg_dims.coxa_length}mm "
         f"femur={walker.leg_dims.femur_length}mm "
         f"tibia={walker.leg_dims.tibia_length}mm"
     )
-    print(
+    _log.info(
         f"Body: half_length={walker.body_dims.half_length}mm "
         f"half_width={walker.body_dims.half_width}mm"
     )
-    print(f"Standing height: {walker.gait_cfg.body_height}mm")
-    print(
+    _log.info(f"Standing height: {walker.gait_cfg.body_height}mm")
+    _log.info(
         f"Max leg reach: {walker.leg_dims.femur_length + walker.leg_dims.tibia_length}mm "
         f"(using {walker.gait_cfg.body_height / (walker.leg_dims.femur_length + walker.leg_dims.tibia_length) * 100:.0f}%)"
     )
-    print()
 
     for leg_id in LegID:
         foot = walker.neutral_feet[leg_id]
@@ -1589,18 +1604,17 @@ def print_diagnostics(walker: QuadrupedWalker):
         configs = LEG_SERVO_CONFIG[leg_id]
         joint_names = ["Shoulder", "Femur   ", "Leg     "]
 
-        print(
+        _log.info(
             f"  {leg_id.value:12s}  foot=({foot[0]:6.1f}, {foot[1]:6.1f}, {foot[2]:6.1f})"
             f"  {'FRONT' if is_front else 'REAR'}"
         )
         for i, (cfg, name) in enumerate(zip(configs, joint_names)):
             raw = angle_to_raw(angles[i], cfg)
             inv = " INV" if cfg.inverted else ""
-            print(
+            _log.info(
                 f"    {name} ID{cfg.servo_id:2d}: {angles[i]:+7.1f}deg -> raw={raw:4d}"
                 f"  (offset={cfg.offset_deg:+.1f}deg{inv})"
             )
-    print()
 
 
 def main():
@@ -1617,31 +1631,31 @@ def main():
         return
 
     if not walker.connect():
-        print("Failed to connect. Check port and power.")
+        _log.error("Failed to connect. Check port and power.")
         return
 
     def signal_handler(sig, frame):
-        print("\nShutting down...")
+        _log.info("\nShutting down...")
         walker.disconnect()
         sys.exit(0)
 
     signal.signal(signal.SIGINT, signal_handler)
 
     if args.identify:
-        print("\nIdentifying all servos by flashing LEDs...")
+        _log.info("\nIdentifying all servos by flashing LEDs...")
         walker.identify_all_servos()
         walker.disconnect()
         return
 
     if args.read_pose:
         # Disable torque so servos can be moved by hand
-        print("\nDisabling torque on all servos for manual posing...")
+        _log.info("\nDisabling torque on all servos for manual posing...")
         all_ids = walker._all_servo_ids()
         for sid in all_ids:
             walker.servos.enable_torque(sid, False)
             time.sleep(0.003)
-        print("Torque OFF. Pose the robot into the desired standing position.")
-        print("Press Enter when ready to read positions...")
+        _log.info("Torque OFF. Pose the robot into the desired standing position.")
+        _log.info("Press Enter when ready to read positions...")
         try:
             input()
         except (EOFError, KeyboardInterrupt):
@@ -1652,22 +1666,26 @@ def main():
         return
 
     if args.calibrate:
-        print("\n" + "=" * 62)
-        print("  ROBOKITTY3 STANDING CALIBRATION")
-        print("=" * 62)
-        print("  1. All servo torque will be DISABLED")
-        print("  2. Manually pose ALL legs into your desired standing position")
-        print("  3. Press Enter to read positions")
-        print("  4. Offsets will be calculated and displayed")
-        print("=" * 62)
+        border = "=" * 62
+        calibration_msg = (
+            f"\n{border}\n"
+            "  ROBOKITTY3 STANDING CALIBRATION\n"
+            f"{border}\n"
+            "  1. All servo torque will be [bold red]DISABLED[/bold red]\n"
+            "  2. Manually pose ALL legs into your desired standing position\n"
+            "  3. Press Enter to read positions\n"
+            "  4. Offsets will be calculated and displayed\n"
+            f"{border}"
+        )
 
+        _log.info(calibration_msg)
         # Disable torque
         all_ids = walker._all_servo_ids()
         for sid in all_ids:
             walker.servos.enable_torque(sid, False)
             time.sleep(0.003)
-        print("\nTorque OFF on all servos. Pose the legs now.")
-        print("Press Enter when the robot is in the desired standing position...")
+        _log.info("\nTorque OFF on all servos. Pose the legs now.")
+        _log.info("Press Enter when the robot is in the desired standing position...")
         try:
             input()
         except (EOFError, KeyboardInterrupt):
@@ -1680,9 +1698,9 @@ def main():
 
     if args.stand:
         print_diagnostics(walker)
-        print("Moving to standing pose (slowly)...")
+        _log.info("Moving to standing pose (slowly)...")
         walker.smooth_stand(2.0)
-        print("Standing. Adjust offsets/inversions as needed. Ctrl+C to exit.")
+        _log.info("Standing. Adjust offsets/inversions as needed. Ctrl+C to exit.")
         try:
             while True:
                 time.sleep(1)
@@ -1700,7 +1718,7 @@ def main():
         run_keyboard_control(walker)
     finally:
         walker.disconnect()
-        print("\nRoboKitty3 shutting down. Bye!")
+        _log.info("\nRoboKitty3 shutting down. Bye!")
 
 
 if __name__ == "__main__":
