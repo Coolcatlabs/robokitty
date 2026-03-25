@@ -5,8 +5,15 @@ All notable changes to this project are documented in this file.
 Versions prior to 2.3 were developed outside of version control and are not included in the Git history. They are documented here to provide context and highlight key project milestones.
 
 ---
+## [2.4] - Latest
 
-## [2.3] - Latest
+### Improvements
+
+* Add stream and file based logger
+
+---
+
+## [2.3]
 
 ### Major Changes
 

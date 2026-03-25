@@ -4,7 +4,10 @@ DIST_NAME = "robokitty"
 DESCRIPTION = "A package for controlling and managing multiped robotic systems."
 PYTHON_REQUIRES = ">=3.12"
 
-REQUIRES = ["pyserial==3.*"]
+REQUIRES = [
+    "pyserial==3.*",
+    "rich==14.3.*",
+]
 
 DEV_REQUIRES = [
     "pre-commit==4.5.*",
