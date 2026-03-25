@@ -2,7 +2,7 @@
 RoboKitty - Quadruped IK Walking Controller
 
 12-DOF (3 per leg) inverse kinematics with walk/trot/pace gaits.
-AX-12A Dynamixel servos via half-duplex UART. 
+AX-12A Dynamixel servos via half-duplex UART.
 
 Leg layout (top view, front facing up):
     FL (8/10/0)     FR (11/9/7)

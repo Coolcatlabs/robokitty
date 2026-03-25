@@ -30,7 +30,7 @@ def checksum(data):
     return (~sum(data)) & 0xFF
 
 
-def build_packet(servo_id, instruction, params=b''):
+def build_packet(servo_id, instruction, params=b""):
     length = len(params) + 2
     body = bytes([servo_id, length, instruction]) + params
     return HEADER + body + bytes([checksum(body)])
@@ -39,10 +39,12 @@ def build_packet(servo_id, instruction, params=b''):
 class AX12Diag:
     def __init__(self, port="/dev/ttyUSB0", baud=1000000):
         self.ser = serial.Serial(
-            port=port, baudrate=baud, timeout=0.1,
+            port=port,
+            baudrate=baud,
+            timeout=0.1,
             bytesize=serial.EIGHTBITS,
             parity=serial.PARITY_NONE,
-            stopbits=serial.STOPBITS_ONE
+            stopbits=serial.STOPBITS_ONE,
         )
         time.sleep(0.1)
         self.ser.reset_input_buffer()
@@ -50,7 +52,7 @@ class AX12Diag:
     def close(self):
         self.ser.close()
 
-    def send_recv(self, servo_id, instruction, params=b''):
+    def send_recv(self, servo_id, instruction, params=b""):
         self.ser.reset_input_buffer()
         packet = build_packet(servo_id, instruction, params)
         self.ser.write(packet)
@@ -86,27 +88,28 @@ class AX12Diag:
         self.send_recv(servo_id, INST_WRITE, bytes([addr, value]))
 
     def write_word(self, servo_id, addr, value):
-        self.send_recv(servo_id, INST_WRITE,
-                       bytes([addr, value & 0xFF, (value >> 8) & 0xFF]))
+        self.send_recv(
+            servo_id, INST_WRITE, bytes([addr, value & 0xFF, (value >> 8) & 0xFF])
+        )
 
     def read_all(self, servo_id):
         """Read and display all important registers."""
-        print(f"\n{'='*55}")
+        print(f"\n{'=' * 55}")
         print(f"  AX-12A Full Diagnostic - Servo ID {servo_id}")
-        print(f"{'='*55}\n")
+        print(f"{'=' * 55}\n")
 
         # Ping first
         alive, ping_err = self.ping(servo_id)
         if not alive:
             print(f"  !! NO RESPONSE from servo ID {servo_id}")
-            print(f"     Check wiring, power, and ID")
+            print("     Check wiring, power, and ID")
             return False
         print(f"  Ping: OK (error byte: {ping_err})")
         if ping_err:
             self.decode_error(ping_err)
 
         # --- EEPROM (persistent settings) ---
-        print(f"\n  --- EEPROM (Persistent Settings) ---")
+        print("\n  --- EEPROM (Persistent Settings) ---")
 
         v, _ = self.read_word(servo_id, 0)
         if v is not None:
@@ -120,10 +123,12 @@ class AX12Diag:
 
         v, _ = self.read_byte(servo_id, 4)
         baud_actual = 2000000 / (v + 1) if v is not None else None
-        print(f"  Baud Rate:           {v} ({int(baud_actual) if baud_actual else '?'} bps)")
+        print(
+            f"  Baud Rate:           {v} ({int(baud_actual) if baud_actual else '?'} bps)"
+        )
 
         v, _ = self.read_byte(servo_id, 5)
-        print(f"  Return Delay:        {v} ({v*2 if v else '?'} us)")
+        print(f"  Return Delay:        {v} ({v * 2 if v else '?'} us)")
 
         cw_limit, _ = self.read_word(servo_id, 6)
         ccw_limit, _ = self.read_word(servo_id, 8)
@@ -143,13 +148,17 @@ class AX12Diag:
         print(f"  Temp Limit:          {v} C")
 
         v, _ = self.read_byte(servo_id, 12)
-        print(f"  Min Voltage:         {v/10:.1f} V")
+        print(f"  Min Voltage:         {v / 10:.1f} V")
 
         v, _ = self.read_byte(servo_id, 13)
-        print(f"  Max Voltage:         {v/10:.1f} V")
+        print(f"  Max Voltage:         {v / 10:.1f} V")
 
         v, _ = self.read_word(servo_id, 14)
-        print(f"  Max Torque:          {v} ({v/1023*100:.0f}%)" if v else "  Max Torque:          ?")
+        print(
+            f"  Max Torque:          {v} ({v / 1023 * 100:.0f}%)"
+            if v
+            else "  Max Torque:          ?"
+        )
 
         v, _ = self.read_byte(servo_id, 16)
         status_labels = {0: "None", 1: "Read only", 2: "All"}
@@ -164,7 +173,7 @@ class AX12Diag:
             self.decode_error(v, prefix="     Shutdown on: ")
 
         # --- RAM (runtime state) ---
-        print(f"\n  --- RAM (Runtime State) ---")
+        print("\n  --- RAM (Runtime State) ---")
 
         v, _ = self.read_byte(servo_id, 24)
         print(f"  Torque Enable:       {v} ({'ON' if v else 'OFF'})")
@@ -188,7 +197,11 @@ class AX12Diag:
         print(f"  Moving Speed:        {speed}")
 
         tl, _ = self.read_word(servo_id, 34)
-        print(f"  Torque Limit:        {tl} ({tl/1023*100:.0f}%)" if tl is not None else "  Torque Limit:        ?")
+        print(
+            f"  Torque Limit:        {tl} ({tl / 1023 * 100:.0f}%)"
+            if tl is not None
+            else "  Torque Limit:        ?"
+        )
 
         pos, _ = self.read_word(servo_id, 36)
         print(f"  Present Position:    {pos} ({self.raw_to_deg(pos):+.1f} deg)")
@@ -204,10 +217,16 @@ class AX12Diag:
         if load is not None:
             load_dir = "CCW" if load & 0x400 else "CW"
             load_val = load & 0x3FF
-            print(f"  Present Load:        {load_val} ({load_dir}, {load_val/1023*100:.0f}%)")
+            print(
+                f"  Present Load:        {load_val} ({load_dir}, {load_val / 1023 * 100:.0f}%)"
+            )
 
         volt, _ = self.read_byte(servo_id, 42)
-        print(f"  Present Voltage:     {volt/10:.1f} V" if volt else "  Present Voltage:     ?")
+        print(
+            f"  Present Voltage:     {volt / 10:.1f} V"
+            if volt
+            else "  Present Voltage:     ?"
+        )
 
         temp, _ = self.read_byte(servo_id, 43)
         print(f"  Present Temperature: {temp} C")
@@ -225,46 +244,53 @@ class AX12Diag:
         print(f"  Punch:               {punch}")
 
         # --- Summary ---
-        print(f"\n  --- SUMMARY ---")
+        print("\n  --- SUMMARY ---")
         if cw_limit == 0 and ccw_limit == 0:
-            print(f"  !! WHEEL MODE - Servo ignores position commands!")
-            print(f"     Fix: Set CW limit=0, CCW limit=1023")
+            print("  !! WHEEL MODE - Servo ignores position commands!")
+            print("     Fix: Set CW limit=0, CCW limit=1023")
 
         v, _ = self.read_byte(servo_id, 24)
         if not v:
-            print(f"  !! TORQUE DISABLED - Servo will not move!")
+            print("  !! TORQUE DISABLED - Servo will not move!")
 
         tl, _ = self.read_word(servo_id, 34)
         if tl is not None and tl == 0:
-            print(f"  !! TORQUE LIMIT = 0 - Servo has no power!")
+            print("  !! TORQUE LIMIT = 0 - Servo has no power!")
 
         if goal is not None and pos is not None:
             diff = abs(goal - pos)
             if diff > 10:
                 print(f"  !! Position error: goal={goal} actual={pos} diff={diff}")
-                print(f"     Servo is not reaching its target!")
+                print("     Servo is not reaching its target!")
 
         if temp and temp > 60:
             print(f"  !! HIGH TEMPERATURE: {temp}C")
 
         if volt:
             if volt < 95:
-                print(f"  !! LOW VOLTAGE: {volt/10:.1f}V")
+                print(f"  !! LOW VOLTAGE: {volt / 10:.1f}V")
             elif volt > 140:
-                print(f"  !! HIGH VOLTAGE: {volt/10:.1f}V")
+                print(f"  !! HIGH VOLTAGE: {volt / 10:.1f}V")
 
         print()
         return True
 
     def decode_error(self, error_byte, prefix="     "):
         errors = []
-        if error_byte & 0x01: errors.append("Input Voltage Error")
-        if error_byte & 0x02: errors.append("Angle Limit Error")
-        if error_byte & 0x04: errors.append("Overheating Error")
-        if error_byte & 0x08: errors.append("Range Error")
-        if error_byte & 0x10: errors.append("Checksum Error")
-        if error_byte & 0x20: errors.append("Overload Error")
-        if error_byte & 0x40: errors.append("Instruction Error")
+        if error_byte & 0x01:
+            errors.append("Input Voltage Error")
+        if error_byte & 0x02:
+            errors.append("Angle Limit Error")
+        if error_byte & 0x04:
+            errors.append("Overheating Error")
+        if error_byte & 0x08:
+            errors.append("Range Error")
+        if error_byte & 0x10:
+            errors.append("Checksum Error")
+        if error_byte & 0x20:
+            errors.append("Overload Error")
+        if error_byte & 0x40:
+            errors.append("Instruction Error")
         if errors:
             print(f"{prefix}Errors: {', '.join(errors)}")
 
@@ -278,45 +304,45 @@ class AX12Diag:
         print(f"\n  --- Attempting fixes for servo ID {servo_id} ---\n")
 
         # 1. Clear errors by toggling torque
-        print(f"  1. Disabling torque to clear errors...")
+        print("  1. Disabling torque to clear errors...")
         self.write_byte(servo_id, 24, 0)  # torque off
         self.write_byte(servo_id, 25, 0)  # LED off
         time.sleep(0.3)
 
         # 2. Set joint mode
-        print(f"  2. Setting joint mode (CW=0, CCW=1023)...")
-        self.write_word(servo_id, 6, 0)     # CW limit
+        print("  2. Setting joint mode (CW=0, CCW=1023)...")
+        self.write_word(servo_id, 6, 0)  # CW limit
         time.sleep(0.05)
         self.write_word(servo_id, 8, 1023)  # CCW limit
         time.sleep(0.05)
 
         # 3. Set max torque
-        print(f"  3. Setting max torque (1023)...")
+        print("  3. Setting max torque (1023)...")
         self.write_word(servo_id, 14, 1023)  # max torque EEPROM
         time.sleep(0.05)
         self.write_word(servo_id, 34, 1023)  # torque limit RAM
         time.sleep(0.05)
 
         # 4. Set compliance
-        print(f"  4. Setting compliance margins=1, slopes=32...")
-        self.write_byte(servo_id, 26, 1)   # CW margin
-        self.write_byte(servo_id, 27, 1)   # CCW margin
+        print("  4. Setting compliance margins=1, slopes=32...")
+        self.write_byte(servo_id, 26, 1)  # CW margin
+        self.write_byte(servo_id, 27, 1)  # CCW margin
         self.write_byte(servo_id, 28, 32)  # CW slope
         self.write_byte(servo_id, 29, 32)  # CCW slope
         time.sleep(0.05)
 
         # 5. Unlock EEPROM
-        print(f"  5. Unlocking EEPROM...")
+        print("  5. Unlocking EEPROM...")
         self.write_byte(servo_id, 47, 0)
         time.sleep(0.05)
 
         # 6. Enable torque
-        print(f"  6. Enabling torque...")
+        print("  6. Enabling torque...")
         self.write_byte(servo_id, 24, 1)
         time.sleep(0.3)
 
         # 7. Set speed and move to center
-        print(f"  7. Setting speed=200, moving to center (512)...")
+        print("  7. Setting speed=200, moving to center (512)...")
         self.write_word(servo_id, 32, 200)
         time.sleep(0.05)
         self.write_word(servo_id, 30, 512)
@@ -325,12 +351,14 @@ class AX12Diag:
         # 8. Read back position
         pos, _ = self.read_word(servo_id, 36)
         goal, _ = self.read_word(servo_id, 30)
-        print(f"  8. Goal={goal}  Present={pos}  Diff={abs(goal-pos) if goal and pos else '?'}")
+        print(
+            f"  8. Goal={goal}  Present={pos}  Diff={abs(goal - pos) if goal and pos else '?'}"
+        )
 
         if pos is not None and goal is not None and abs(goal - pos) < 20:
-            print(f"\n  SUCCESS! Servo is responding to position commands.")
+            print("\n  SUCCESS! Servo is responding to position commands.")
         else:
-            print(f"\n  STILL NOT MOVING. Possible hardware fault.")
+            print("\n  STILL NOT MOVING. Possible hardware fault.")
 
         print()
 
@@ -341,8 +369,9 @@ def main():
     parser.add_argument("--port", default="/dev/ttyUSB0", help="Serial port")
     parser.add_argument("--baud", type=int, default=1000000, help="Baudrate")
     parser.add_argument("--fix", action="store_true", help="Attempt to fix issues")
-    parser.add_argument("--scan", action="store_true",
-                        help="Scan all IDs 0-20 to find servos")
+    parser.add_argument(
+        "--scan", action="store_true", help="Scan all IDs 0-20 to find servos"
+    )
     args = parser.parse_args()
 
     diag = AX12Diag(args.port, args.baud)

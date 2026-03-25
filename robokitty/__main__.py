@@ -9,41 +9,46 @@ from enum import Enum
 
 from ._cli import _cli_parser
 from ._constants import DEFAULT_PORT, DEFAULT_BAUD
-from . import __version__
 # ============================================================================
 # CONFIGURATION - ROBOKITTY ACTUAL MEASUREMENTS
 # ============================================================================
 
+
 @dataclass
 class LegDimensions:
-
     """Leg segment lengths in mm (shaft-center to shaft-center, shaft to foot)."""
-    coxa_length: float = 58.0     # Shoulder shaft to femur pivot
-    femur_length: float = 68.0    # Femur pivot to knee pivot
-    tibia_length: float = 75.0    # Knee pivot to foot contact point
+
+    coxa_length: float = 58.0  # Shoulder shaft to femur pivot
+    femur_length: float = 68.0  # Femur pivot to knee pivot
+    tibia_length: float = 75.0  # Knee pivot to foot contact point
 
 
 @dataclass
 class BodyDimensions:
     """Distance from body CENTER to coxa shaft center in mm."""
-    half_length: float = 171.0    # Center to front/rear coxa shaft
-    half_width: float = 101.5     # Center to left/right coxa shaft
+
+    half_length: float = 171.0  # Center to front/rear coxa shaft
+    half_width: float = 101.5  # Center to left/right coxa shaft
 
 
 @dataclass
 class GaitConfig:
     """Gait timing and geometry - tuned for 1.65kg on carpet."""
-    step_height: float = 25.0      # Foot lift mm (reliable clearance)
-    step_length: float = 80.0      # Forward travel per step mm (big enough for grip)
-    cycle_time: float = 1.6        # Full gait cycle seconds (faster for momentum)
-    duty_factor: float = 0.75      # 0.75=walk/creep (1 foot up, 3 on ground)
-    body_height: float = 110.0     # Standing height mm (lower = more knee bend = more grip)
-    update_rate_hz: float = 50.0   # Control loop frequency
+
+    step_height: float = 25.0  # Foot lift mm (reliable clearance)
+    step_length: float = 80.0  # Forward travel per step mm (big enough for grip)
+    cycle_time: float = 1.6  # Full gait cycle seconds (faster for momentum)
+    duty_factor: float = 0.75  # 0.75=walk/creep (1 foot up, 3 on ground)
+    body_height: float = (
+        110.0  # Standing height mm (lower = more knee bend = more grip)
+    )
+    update_rate_hz: float = 50.0  # Control loop frequency
 
 
 # ============================================================================
 # SERVO CONFIGURATION FOR AX-12A
 # ============================================================================
+
 
 class LegID(Enum):
     FL = "FrontLeft"
@@ -55,11 +60,12 @@ class LegID(Enum):
 @dataclass
 class ServoJointConfig:
     """Configuration for one servo/joint."""
+
     servo_id: int
-    offset_deg: float = 0.0     # Mechanical offset (tune during calibration)
-    inverted: bool = False       # True = positive angle moves servo negative
-    min_deg: float = -150.0      # Software limit (AX-12A range is +-150)
-    max_deg: float = 150.0       # Software limit
+    offset_deg: float = 0.0  # Mechanical offset (tune during calibration)
+    inverted: bool = False  # True = positive angle moves servo negative
+    min_deg: float = -150.0  # Software limit (AX-12A range is +-150)
+    max_deg: float = 150.0  # Software limit
 
 
 # AX-12A constants
@@ -77,33 +83,32 @@ LEG_SERVO_CONFIG: Dict[LegID, List[ServoJointConfig]] = {
     # [Shoulder/Coxa, Femur, Tibia/Leg]
     # Offsets from --calibrate 2026-02-26
     LegID.FL: [
-        ServoJointConfig(servo_id=8,  offset_deg=+0.9,  inverted=True),   # Shoulder
+        ServoJointConfig(servo_id=8, offset_deg=+0.9, inverted=True),  # Shoulder
         ServoJointConfig(servo_id=10, offset_deg=-33.7, inverted=False),  # Femur
-        ServoJointConfig(servo_id=0,  offset_deg=+48.1, inverted=False),  # Leg
+        ServoJointConfig(servo_id=0, offset_deg=+48.1, inverted=False),  # Leg
     ],
     LegID.FR: [
-        ServoJointConfig(servo_id=11, offset_deg=+6.1,  inverted=False),  # Shoulder
-        ServoJointConfig(servo_id=9,  offset_deg=-47.2, inverted=True),   # Femur
-        ServoJointConfig(servo_id=7,  offset_deg=+42.3, inverted=True),   # Leg
+        ServoJointConfig(servo_id=11, offset_deg=+6.1, inverted=False),  # Shoulder
+        ServoJointConfig(servo_id=9, offset_deg=-47.2, inverted=True),  # Femur
+        ServoJointConfig(servo_id=7, offset_deg=+42.3, inverted=True),  # Leg
     ],
     LegID.RL: [
-        ServoJointConfig(servo_id=5,  offset_deg=+2.6,  inverted=False),  # Shoulder
-        ServoJointConfig(servo_id=3,  offset_deg=+16.4, inverted=True),   # Femur
-        ServoJointConfig(servo_id=6,  offset_deg=-12.0, inverted=True),   # Leg
+        ServoJointConfig(servo_id=5, offset_deg=+2.6, inverted=False),  # Shoulder
+        ServoJointConfig(servo_id=3, offset_deg=+16.4, inverted=True),  # Femur
+        ServoJointConfig(servo_id=6, offset_deg=-12.0, inverted=True),  # Leg
     ],
     LegID.RR: [
-        ServoJointConfig(servo_id=2,  offset_deg=-38.4, inverted=True),   # Shoulder
-        ServoJointConfig(servo_id=1,  offset_deg=+15.6, inverted=False),  # Femur
-        ServoJointConfig(servo_id=4,  offset_deg=-26.4, inverted=False),  # Leg
+        ServoJointConfig(servo_id=2, offset_deg=-38.4, inverted=True),  # Shoulder
+        ServoJointConfig(servo_id=1, offset_deg=+15.6, inverted=False),  # Femur
+        ServoJointConfig(servo_id=4, offset_deg=-26.4, inverted=False),  # Leg
     ],
 }
-
-
 
 
 # ============================================================================
 # INVERSE KINEMATICS - 3DOF LEG
 # ============================================================================
+
 
 class LegIK:
     """
@@ -121,8 +126,9 @@ class LegIK:
         self.L2 = dims.femur_length
         self.L3 = dims.tibia_length
 
-    def solve(self, x: float, y: float, z: float,
-              is_front: bool = True) -> Tuple[float, float, float]:
+    def solve(
+        self, x: float, y: float, z: float, is_front: bool = True
+    ) -> Tuple[float, float, float]:
         """
         Compute (coxa_deg, femur_deg, tibia_deg) for foot at (x, y, z).
 
@@ -174,6 +180,7 @@ class LegIK:
 # GAIT GENERATOR
 # ============================================================================
 
+
 class GaitType(Enum):
     TROT = "trot"
     WALK = "walk"
@@ -182,16 +189,22 @@ class GaitType(Enum):
 
 GAIT_PHASES = {
     GaitType.TROT: {
-        LegID.FL: 0.0, LegID.FR: 0.5,
-        LegID.RL: 0.5, LegID.RR: 0.0,
+        LegID.FL: 0.0,
+        LegID.FR: 0.5,
+        LegID.RL: 0.5,
+        LegID.RR: 0.0,
     },
     GaitType.WALK: {
-        LegID.FL: 0.5,  LegID.FR: 0.25,
-        LegID.RL: 0.0,  LegID.RR: 0.75,
+        LegID.FL: 0.5,
+        LegID.FR: 0.25,
+        LegID.RL: 0.0,
+        LegID.RR: 0.75,
     },
     GaitType.PACE: {
-        LegID.FL: 0.0, LegID.FR: 0.5,
-        LegID.RL: 0.0, LegID.RR: 0.5,
+        LegID.FL: 0.0,
+        LegID.FR: 0.5,
+        LegID.RL: 0.0,
+        LegID.RR: 0.5,
     },
 }
 
@@ -266,9 +279,13 @@ class FootTrajectory:
 
         return (dx, 0.0, dz)
 
-    def compute_body_shift(self, phase: float, speed: float,
-                           phase_offsets: Dict, hip_positions: Dict,
-                           ) -> Tuple[float, float]:
+    def compute_body_shift(
+        self,
+        phase: float,
+        speed: float,
+        phase_offsets: Dict,
+        hip_positions: Dict,
+    ) -> Tuple[float, float]:
         """Compute body X/Y shift to keep CoM over support triangle."""
         if abs(speed) < 0.01:
             return (0.0, 0.0)
@@ -304,8 +321,9 @@ class FootTrajectory:
 
         return (shift_x, shift_y)
 
-    def compute_turn(self, phase: float, turn_rate: float,
-                     hip_x: float, hip_y: float) -> Tuple[float, float, float]:
+    def compute_turn(
+        self, phase: float, turn_rate: float, hip_x: float, hip_y: float
+    ) -> Tuple[float, float, float]:
         """Foot offset for turning in place."""
         if abs(turn_rate) < 0.01:
             return (0.0, 0.0, 0.0)
@@ -333,6 +351,7 @@ class FootTrajectory:
 # AX-12A SERVO INTERFACE (half-duplex UART, Protocol 1.0)
 # ============================================================================
 
+
 class AX12Interface:
     """
     Minimal AX-12A driver using pyserial.
@@ -359,8 +378,12 @@ class AX12Interface:
     ADDR_MOVING_SPEED = 32
     ADDR_PRESENT_POSITION = 36
 
-    def __init__(self, port: str = DEFAULT_PORT, baudrate: int = DEFAULT_BAUD,
-                 direction_pin: Optional[int] = None):
+    def __init__(
+        self,
+        port: str = DEFAULT_PORT,
+        baudrate: int = DEFAULT_BAUD,
+        direction_pin: Optional[int] = None,
+    ):
         self.port_path = port
         self.baudrate = baudrate
         self.direction_pin = direction_pin
@@ -371,18 +394,20 @@ class AX12Interface:
     def connect(self) -> bool:
         try:
             import serial
+
             self.serial = serial.Serial(
                 port=self.port_path,
                 baudrate=self.baudrate,
                 timeout=0.01,
                 bytesize=serial.EIGHTBITS,
                 parity=serial.PARITY_NONE,
-                stopbits=serial.STOPBITS_ONE
+                stopbits=serial.STOPBITS_ONE,
             )
 
             if self.direction_pin is not None:
                 try:
                     import RPi.GPIO as GPIO
+
                     GPIO.setmode(GPIO.BCM)
                     GPIO.setup(self.direction_pin, GPIO.OUT)
                     GPIO.output(self.direction_pin, GPIO.LOW)
@@ -401,18 +426,20 @@ class AX12Interface:
     def _set_tx_mode(self):
         if self._gpio_setup:
             import RPi.GPIO as GPIO
+
             GPIO.output(self.direction_pin, GPIO.HIGH)
 
     def _set_rx_mode(self):
         if self._gpio_setup:
             import RPi.GPIO as GPIO
+
             GPIO.output(self.direction_pin, GPIO.LOW)
 
     @staticmethod
     def _checksum(data: bytes) -> int:
         return (~sum(data)) & 0xFF
 
-    def _send_packet(self, servo_id: int, instruction: int, params: bytes = b''):
+    def _send_packet(self, servo_id: int, instruction: int, params: bytes = b""):
         if not self._connected:
             return
         length = len(params) + 2
@@ -426,8 +453,9 @@ class AX12Interface:
         time.sleep(0.0001)
         self._set_rx_mode()
 
-    def _read_response(self, expected_params: int = 2,
-                       timeout: float = 0.05) -> Tuple[Optional[int], Optional[bytes]]:
+    def _read_response(
+        self, expected_params: int = 2, timeout: float = 0.05
+    ) -> Tuple[Optional[int], Optional[bytes]]:
         """
         Read a status packet from the bus after a READ instruction.
 
@@ -446,7 +474,7 @@ class AX12Interface:
         self.serial.reset_input_buffer()
 
         deadline = time.monotonic() + timeout
-        buf = b''
+        buf = b""
         while len(buf) < total and time.monotonic() < deadline:
             remaining = total - len(buf)
             chunk = self.serial.read(remaining)
@@ -466,7 +494,7 @@ class AX12Interface:
             if idx < 0:
                 return (None, None)
 
-        pkt = buf[idx:idx + total]
+        pkt = buf[idx : idx + total]
         if len(pkt) < total:
             return (None, None)
 
@@ -475,7 +503,7 @@ class AX12Interface:
             return (None, None)
 
         error = pkt[4]
-        params = pkt[5:5 + expected_params]
+        params = pkt[5 : 5 + expected_params]
         return (error, params)
 
     def read_position(self, servo_id: int) -> Optional[int]:
@@ -483,8 +511,9 @@ class AX12Interface:
         if not self._connected:
             return None
         self.serial.reset_input_buffer()
-        self._send_packet(servo_id, self.INST_READ,
-                          bytes([self.ADDR_PRESENT_POSITION, 2]))
+        self._send_packet(
+            servo_id, self.INST_READ, bytes([self.ADDR_PRESENT_POSITION, 2])
+        )
         err, params = self._read_response(expected_params=2, timeout=0.05)
         if params is None or len(params) < 2:
             return None
@@ -511,8 +540,9 @@ class AX12Interface:
             return None
         self.serial.reset_input_buffer()
         # Read present position just to get the status packet error byte
-        self._send_packet(servo_id, self.INST_READ,
-                          bytes([self.ADDR_PRESENT_POSITION, 2]))
+        self._send_packet(
+            servo_id, self.INST_READ, bytes([self.ADDR_PRESENT_POSITION, 2])
+        )
         err, params = self._read_response(expected_params=2, timeout=0.05)
         if err is None:
             return None
@@ -556,12 +586,10 @@ class AX12Interface:
         self.enable_torque(servo_id, False)
         time.sleep(0.05)
         # Reset torque limit to max (addr 34, 2 bytes)
-        self._send_packet(servo_id, self.INST_WRITE,
-                          bytes([34, 0xFF, 0x03]))
+        self._send_packet(servo_id, self.INST_WRITE, bytes([34, 0xFF, 0x03]))
         time.sleep(0.01)
         # Temporarily set Alarm Shutdown to 0 (addr 18) to prevent re-latch
-        self._send_packet(servo_id, self.INST_WRITE,
-                          bytes([18, 0x00]))
+        self._send_packet(servo_id, self.INST_WRITE, bytes([18, 0x00]))
         time.sleep(0.01)
         # Turn off LED
         self.set_led(servo_id, False)
@@ -570,37 +598,47 @@ class AX12Interface:
         self.enable_torque(servo_id, True)
         time.sleep(0.1)
         # Restore Alarm Shutdown to default (0x24 = overload + overheat)
-        self._send_packet(servo_id, self.INST_WRITE,
-                          bytes([18, 0x24]))
+        self._send_packet(servo_id, self.INST_WRITE, bytes([18, 0x24]))
         time.sleep(0.01)
 
     def enable_torque(self, servo_id: int, enable: bool = True):
-        self._send_packet(servo_id, self.INST_WRITE,
-                          bytes([self.ADDR_TORQUE_ENABLE, 1 if enable else 0]))
+        self._send_packet(
+            servo_id,
+            self.INST_WRITE,
+            bytes([self.ADDR_TORQUE_ENABLE, 1 if enable else 0]),
+        )
         time.sleep(0.001)
 
     def set_led(self, servo_id: int, on: bool = True):
         """Flash servo LED - useful for identifying physical servo location."""
-        self._send_packet(servo_id, self.INST_WRITE,
-                          bytes([self.ADDR_LED, 1 if on else 0]))
+        self._send_packet(
+            servo_id, self.INST_WRITE, bytes([self.ADDR_LED, 1 if on else 0])
+        )
         time.sleep(0.001)
 
     def set_moving_speed(self, servo_id: int, speed: int = 200):
         speed = max(0, min(1023, speed))
-        self._send_packet(servo_id, self.INST_WRITE,
-                          bytes([self.ADDR_MOVING_SPEED, speed & 0xFF, (speed >> 8) & 0xFF]))
+        self._send_packet(
+            servo_id,
+            self.INST_WRITE,
+            bytes([self.ADDR_MOVING_SPEED, speed & 0xFF, (speed >> 8) & 0xFF]),
+        )
         time.sleep(0.001)
 
     def set_compliance(self, servo_id: int, margin: int = 0, slope: int = 32):
         """Set compliance margin and slope. margin=0 eliminates dead zone."""
-        self._send_packet(servo_id, self.INST_WRITE,
-                          bytes([self.ADDR_CW_COMPLIANCE_MARGIN, margin]))
-        self._send_packet(servo_id, self.INST_WRITE,
-                          bytes([self.ADDR_CCW_COMPLIANCE_MARGIN, margin]))
-        self._send_packet(servo_id, self.INST_WRITE,
-                          bytes([self.ADDR_CW_COMPLIANCE_SLOPE, slope]))
-        self._send_packet(servo_id, self.INST_WRITE,
-                          bytes([self.ADDR_CCW_COMPLIANCE_SLOPE, slope]))
+        self._send_packet(
+            servo_id, self.INST_WRITE, bytes([self.ADDR_CW_COMPLIANCE_MARGIN, margin])
+        )
+        self._send_packet(
+            servo_id, self.INST_WRITE, bytes([self.ADDR_CCW_COMPLIANCE_MARGIN, margin])
+        )
+        self._send_packet(
+            servo_id, self.INST_WRITE, bytes([self.ADDR_CW_COMPLIANCE_SLOPE, slope])
+        )
+        self._send_packet(
+            servo_id, self.INST_WRITE, bytes([self.ADDR_CCW_COMPLIANCE_SLOPE, slope])
+        )
         time.sleep(0.001)
 
     def sync_write_positions(self, positions: Dict[int, int]):
@@ -633,8 +671,9 @@ class AX12Interface:
         if self._gpio_setup:
             try:
                 import RPi.GPIO as GPIO
+
                 GPIO.cleanup(self.direction_pin)
-            except:
+            except:  # noqa E722
                 pass
         print("AX-12A bus disconnected")
 
@@ -646,6 +685,7 @@ class AX12Interface:
 # ============================================================================
 # ANGLE -> RAW POSITION CONVERSION
 # ============================================================================
+
 
 def angle_to_raw(angle_deg: float, config: ServoJointConfig) -> int:
     """Convert joint angle in degrees to AX-12A raw position (0-1023)."""
@@ -661,16 +701,19 @@ def angle_to_raw(angle_deg: float, config: ServoJointConfig) -> int:
 # MAIN CONTROLLER
 # ============================================================================
 
+
 class QuadrupedWalker:
     """Top-level walking controller for RoboKitty."""
 
-    def __init__(self, leg_dims: LegDimensions = None,
-                 body_dims: BodyDimensions = None,
-                 gait_config: GaitConfig = None,
-                 port: str = DEFAULT_PORT,
-                 baudrate: int = DEFAULT_BAUD,
-                 direction_pin: Optional[int] = None):
-
+    def __init__(
+        self,
+        leg_dims: LegDimensions = None,
+        body_dims: BodyDimensions = None,
+        gait_config: GaitConfig = None,
+        port: str = DEFAULT_PORT,
+        baudrate: int = DEFAULT_BAUD,
+        direction_pin: Optional[int] = None,
+    ):
         self.leg_dims = leg_dims or LegDimensions()
         self.body_dims = body_dims or BodyDimensions()
         self.gait_cfg = gait_config or GaitConfig()
@@ -687,9 +730,9 @@ class QuadrupedWalker:
         bL = self.body_dims.half_length
         bW = self.body_dims.half_width
         self.hip_positions = {
-            LegID.FL: ( bL,  bW),
-            LegID.FR: ( bL, -bW),
-            LegID.RL: (-bL,  bW),
+            LegID.FL: (bL, bW),
+            LegID.FR: (bL, -bW),
+            LegID.RL: (-bL, bW),
             LegID.RR: (-bL, -bW),
         }
 
@@ -702,14 +745,14 @@ class QuadrupedWalker:
         }
 
         # Neutral foot positions relative to each hip
-        L1 = self.leg_dims.coxa_length
-        foot_lateral = 5.0   # Nearly vertical legs
+        # L1 = self.leg_dims.coxa_length
+        foot_lateral = 5.0  # Nearly vertical legs
         h = self.gait_cfg.body_height
 
         self.neutral_feet = {
-            LegID.FL: (0.0,  foot_lateral, -h),
+            LegID.FL: (0.0, foot_lateral, -h),
             LegID.FR: (0.0, -foot_lateral, -h),
-            LegID.RL: (0.0,  foot_lateral, -h),
+            LegID.RL: (0.0, foot_lateral, -h),
             LegID.RR: (0.0, -foot_lateral, -h),
         }
 
@@ -717,8 +760,7 @@ class QuadrupedWalker:
         self.locked_coxa_angles = {}
         for leg_id in LegID:
             foot = self.neutral_feet[leg_id]
-            angles = self.ik.solve(*foot,
-                                   is_front=self.leg_is_front[leg_id])
+            angles = self.ik.solve(*foot, is_front=self.leg_is_front[leg_id])
             self.locked_coxa_angles[leg_id] = angles[0]
         self._running = False
         self._walk_thread: Optional[threading.Thread] = None
@@ -734,8 +776,7 @@ class QuadrupedWalker:
         self._audit_interval = 10  # Log every 10th cycle
         # Build compact column header: FL_s,FL_f,FL_l,FR_s,...
         self._audit_header = "cyc,ph,spd," + ",".join(
-            f"{lid.name}_{jn}" for lid in LegID
-            for jn in ["s", "f", "l"]
+            f"{lid.name}_{jn}" for lid in LegID for jn in ["s", "f", "l"]
         )
 
     def connect(self) -> bool:
@@ -754,7 +795,9 @@ class QuadrupedWalker:
             else:
                 self.servos.set_moving_speed(sid, 0)
             time.sleep(0.003)
-        print(f"All {len(all_ids)} servos enabled (compliance=0, shoulders=300, legs=max)")
+        print(
+            f"All {len(all_ids)} servos enabled (compliance=0, shoulders=300, legs=max)"
+        )
         return True
 
     def disconnect(self):
@@ -791,11 +834,11 @@ class QuadrupedWalker:
         print(f"\n  === Diagnosing Servo ID {servo_id} ===")
 
         # Step 1: Read error register
-        print(f"  1. Reading error register...")
+        print("  1. Reading error register...")
         err = self.servos.read_error(servo_id)
         if err is None:
-            print(f"     FAILED to read - servo not responding on bus!")
-            print(f"     Check: wiring, power, servo ID, baud rate")
+            print("     FAILED to read - servo not responding on bus!")
+            print("     Check: wiring, power, servo ID, baud rate")
         else:
             error_names = [
                 (0, "Input Voltage"),
@@ -807,7 +850,7 @@ class QuadrupedWalker:
                 (6, "Instruction"),
             ]
             if err == 0:
-                print(f"     Error register: 0x00 (no errors)")
+                print("     Error register: 0x00 (no errors)")
             else:
                 print(f"     Error register: 0x{err:02X}")
                 for bit, name in error_names:
@@ -815,48 +858,48 @@ class QuadrupedWalker:
                         print(f"     ** {name} Error (bit {bit}) **")
 
         # Step 2: Read voltage
-        print(f"  2. Reading voltage...")
+        print("  2. Reading voltage...")
         volts = self.servos.read_voltage(servo_id)
         if volts is not None:
             status = "OK" if 9.0 <= volts <= 12.6 else "WARNING"
             print(f"     Voltage: {volts:.1f}V ({status})")
         else:
-            print(f"     Failed to read voltage")
+            print("     Failed to read voltage")
 
         # Step 3: Read temperature
-        print(f"  3. Reading temperature...")
+        print("  3. Reading temperature...")
         temp = self.servos.read_temperature(servo_id)
         if temp is not None:
             status = "OK" if temp < 65 else "HOT!" if temp < 75 else "CRITICAL!"
             print(f"     Temperature: {temp}C ({status})")
         else:
-            print(f"     Failed to read temperature")
+            print("     Failed to read temperature")
 
         # Step 4: Read current position
-        print(f"  4. Reading position...")
+        print("  4. Reading position...")
         pos = self.servos.read_position(servo_id)
         if pos is not None:
             print(f"     Position: {pos} (center=512)")
         else:
-            print(f"     Failed to read position")
+            print("     Failed to read position")
 
         # Step 5: Attempt recovery
-        print(f"  5. Attempting error clear (torque cycle + LED off)...")
+        print("  5. Attempting error clear (torque cycle + LED off)...")
         self.servos.clear_error(servo_id)
         time.sleep(0.5)
 
         # Re-read error
         err2 = self.servos.read_error(servo_id)
         if err2 is not None and err2 == 0:
-            print(f"     Error cleared successfully!")
+            print("     Error cleared successfully!")
         elif err2 is not None:
             print(f"     Error persists: 0x{err2:02X}")
-            print(f"     Try: power cycle, check for mechanical bind, reduce load")
+            print("     Try: power cycle, check for mechanical bind, reduce load")
         else:
-            print(f"     Still can't communicate with servo")
+            print("     Still can't communicate with servo")
 
         # Step 6: Try position command
-        print(f"  6. Setting joint mode and testing movement...")
+        print("  6. Setting joint mode and testing movement...")
         self.servos._send_packet(servo_id, 0x03, bytes([6, 0x00, 0x00]))
         time.sleep(0.01)
         self.servos._send_packet(servo_id, 0x03, bytes([8, 0xFF, 0x03]))
@@ -865,18 +908,18 @@ class QuadrupedWalker:
         self.servos.set_moving_speed(servo_id, 200)
         time.sleep(0.1)
 
-        print(f"     Moving to center (512)...")
+        print("     Moving to center (512)...")
         self.servos.sync_write_positions({servo_id: 512})
         time.sleep(1.5)
-        print(f"     Moving to 350...")
+        print("     Moving to 350...")
         self.servos.sync_write_positions({servo_id: 350})
         time.sleep(1.5)
-        print(f"     Moving to 650...")
+        print("     Moving to 650...")
         self.servos.sync_write_positions({servo_id: 650})
         time.sleep(1.5)
 
         # Return to standing position (not center!)
-        print(f"  7. Returning to standing pose...")
+        print("  7. Returning to standing pose...")
         self.stand()
         time.sleep(1.0)
 
@@ -885,8 +928,13 @@ class QuadrupedWalker:
     def scan_all_errors(self):
         """Read error register, voltage, and temperature from every servo."""
         error_names = [
-            (0, "Voltage"), (1, "AngleLimit"), (2, "Overheat"),
-            (3, "Range"), (4, "Checksum"), (5, "Overload"), (6, "Instruction"),
+            (0, "Voltage"),
+            (1, "AngleLimit"),
+            (2, "Overheat"),
+            (3, "Range"),
+            (4, "Checksum"),
+            (5, "Overload"),
+            (6, "Instruction"),
         ]
         joint_names = ["Shoulder", "Femur", "Leg"]
         any_error = False
@@ -921,8 +969,10 @@ class QuadrupedWalker:
                 e_str = f"0x{err:02X}" if err is not None else "???"
 
                 status = " ** " + ", ".join(parts) + " **" if parts else " OK"
-                print(f"    {leg_id.value:12s} {joint_names[i]:8s} ID{sid:2d}: "
-                      f"err={e_str} {v_str} {t_str} {p_str}{status}")
+                print(
+                    f"    {leg_id.value:12s} {joint_names[i]:8s} ID{sid:2d}: "
+                    f"err={e_str} {v_str} {t_str} {p_str}{status}"
+                )
 
         if not any_error:
             print("    All servos healthy!")
@@ -1015,8 +1065,10 @@ class QuadrupedWalker:
                 all_angles[cfg.servo_id] = angle
 
                 inv_str = " INV" if cfg.inverted else ""
-                print(f"    {name} ID{cfg.servo_id:2d}:  raw={raw:4d}  "
-                      f"angle={angle:+7.1f}deg{inv_str}")
+                print(
+                    f"    {name} ID{cfg.servo_id:2d}:  raw={raw:4d}  "
+                    f"angle={angle:+7.1f}deg{inv_str}"
+                )
 
         # Summary table for easy copy-paste
         print("\n" + "-" * 62)
@@ -1028,8 +1080,10 @@ class QuadrupedWalker:
             for cfg in configs:
                 r = all_raw.get(cfg.servo_id)
                 vals.append(f"{r:4d}" if r is not None else " ???")
-            print(f"  {leg_id.value:12s}:  Shoulder={vals[0]}  "
-                  f"Femur={vals[1]}  Leg={vals[2]}")
+            print(
+                f"  {leg_id.value:12s}:  Shoulder={vals[0]}  "
+                f"Femur={vals[1]}  Leg={vals[2]}"
+            )
 
         print("\n  ANGLE SUMMARY:")
         print("-" * 62)
@@ -1039,8 +1093,10 @@ class QuadrupedWalker:
             for cfg in configs:
                 a = all_angles.get(cfg.servo_id)
                 vals.append(f"{a:+7.1f}" if a is not None else "   ???")
-            print(f"  {leg_id.value:12s}:  Shoulder={vals[0]}  "
-                  f"Femur={vals[1]}  Leg={vals[2]}")
+            print(
+                f"  {leg_id.value:12s}:  Shoulder={vals[0]}  "
+                f"Femur={vals[1]}  Leg={vals[2]}"
+            )
         print()
 
     def calibrate_standing(self):
@@ -1089,7 +1145,9 @@ class QuadrupedWalker:
                 # For inverted: raw = 512 - (ik_angle + new_offset) * DEG
                 #   new_offset = -((raw - 512) / DEG) - ik_angle
                 if cfg.inverted:
-                    needed_offset = -((raw - AX12_CENTER) / AX12_DEG_TO_UNITS) - ik_angle
+                    needed_offset = (
+                        -((raw - AX12_CENTER) / AX12_DEG_TO_UNITS) - ik_angle
+                    )
                 else:
                     needed_offset = ((raw - AX12_CENTER) / AX12_DEG_TO_UNITS) - ik_angle
 
@@ -1097,10 +1155,12 @@ class QuadrupedWalker:
                 inv_str = " INV" if cfg.inverted else ""
                 change = needed_offset - current_offset
 
-                print(f"    {name} ID{cfg.servo_id:2d}:  raw={raw:4d}  "
-                      f"actual={actual_angle:+7.1f}  ik_target={ik_angle:+7.1f}  "
-                      f"offset: {current_offset:+.1f} -> {needed_offset:+.1f} "
-                      f"(change {change:+.1f}){inv_str}")
+                print(
+                    f"    {name} ID{cfg.servo_id:2d}:  raw={raw:4d}  "
+                    f"actual={actual_angle:+7.1f}  ik_target={ik_angle:+7.1f}  "
+                    f"offset: {current_offset:+.1f} -> {needed_offset:+.1f} "
+                    f"(change {change:+.1f}){inv_str}"
+                )
 
                 suggested_offsets[(leg_id, i)] = needed_offset
 
@@ -1116,10 +1176,12 @@ class QuadrupedWalker:
                 off = suggested_offsets.get((leg_id, i), cfg.offset_deg)
                 off_rounded = round(off, 1)
                 inv_str = "True " if cfg.inverted else "False"
-                print(f"        ServoJointConfig(servo_id={cfg.servo_id:<2d}, "
-                      f"offset_deg={off_rounded:+6.1f}, inverted={inv_str}),"
-                      f"  # {jn}")
-            print(f"    ],")
+                print(
+                    f"        ServoJointConfig(servo_id={cfg.servo_id:<2d}, "
+                    f"offset_deg={off_rounded:+6.1f}, inverted={inv_str}),"
+                    f"  # {jn}"
+                )
+            print("    ],")
 
         print()
         print("  Copy the offsets above into LEG_SERVO_CONFIG in the code.")
@@ -1133,7 +1195,7 @@ class QuadrupedWalker:
         Press Enter after each to continue.
         """
         joint_names = ["Shoulder", "Femur", "Leg"]
-        
+
         # First center ALL servos
         print("\n  Centering all servos to 512 (neutral)...")
         center_positions = {}
@@ -1142,35 +1204,35 @@ class QuadrupedWalker:
                 center_positions[cfg.servo_id] = 512
         self.servos.sync_write_positions(center_positions)
         time.sleep(1.0)
-        
+
         for leg_id in LegID:
             configs = LEG_SERVO_CONFIG[leg_id]
             for i, cfg in enumerate(configs):
                 # Reset all to center
                 self.servos.sync_write_positions(center_positions)
                 time.sleep(0.5)
-                
+
                 print(f"\n  {leg_id.value} {joint_names[i]} (ID {cfg.servo_id})")
-                print(f"    Moving POSITIVE 30 degrees from center...")
-                
+                print("    Moving POSITIVE 30 degrees from center...")
+
                 # Move this one servo +30 degrees from center
                 test_pos = 512 + int(30 * AX12_DEG_TO_UNITS)  # ~614
                 self.servos.sync_write_positions({cfg.servo_id: test_pos})
                 time.sleep(1.0)
-                
+
                 print(f"    Raw position: 512 -> {test_pos}")
                 print(f"    Currently inverted: {cfg.inverted}")
-                print(f"    What did the servo do?")
-                print(f"      Shoulder: should swing FORWARD")
-                print(f"      Femur:    should swing leg DOWN/FORWARD")
-                print(f"      Leg:      should swing foot DOWN/FORWARD")
-                
-                input(f"    Press Enter for next joint...")
-                
+                print("    What did the servo do?")
+                print("      Shoulder: should swing FORWARD")
+                print("      Femur:    should swing leg DOWN/FORWARD")
+                print("      Leg:      should swing foot DOWN/FORWARD")
+
+                input("    Press Enter for next joint...")
+
                 # Return to center
                 self.servos.sync_write_positions({cfg.servo_id: 512})
                 time.sleep(0.5)
-        
+
         print("\n  Joint test complete. Report which ones went the wrong way.")
         """Flash each servo LED one at a time with label."""
         for leg_id in LegID:
@@ -1208,8 +1270,7 @@ class QuadrupedWalker:
         positions = {}
         for leg_id in LegID:
             foot = self.neutral_feet[leg_id]
-            angles = self.ik.solve(*foot,
-                                   is_front=self.leg_is_front[leg_id])
+            angles = self.ik.solve(*foot, is_front=self.leg_is_front[leg_id])
             for i, cfg in enumerate(LEG_SERVO_CONFIG[leg_id]):
                 positions[cfg.servo_id] = angle_to_raw(angles[i], cfg)
         self.servos.sync_write_positions(positions)
@@ -1265,7 +1326,8 @@ class QuadrupedWalker:
             body_dx, body_dy = 0.0, 0.0
             if is_moving and abs(speed) > 0.01:
                 body_dx, body_dy = self.trajectory.compute_body_shift(
-                    self._phase, speed, phase_offsets, self.hip_positions)
+                    self._phase, speed, phase_offsets, self.hip_positions
+                )
 
             for leg_id in LegID:
                 leg_phase = (self._phase + phase_offsets[leg_id]) % 1.0
@@ -1274,13 +1336,15 @@ class QuadrupedWalker:
                     # Pure turning
                     hip = self.hip_positions[leg_id]
                     dx, dy, dz = self.trajectory.compute_turn(
-                        leg_phase, turn, hip[0], hip[1])
+                        leg_phase, turn, hip[0], hip[1]
+                    )
                 elif abs(turn) > 0.01:
                     # Combined forward + turning
                     dx_fwd, _, dz_fwd = self.trajectory.compute(leg_phase, speed)
                     hip = self.hip_positions[leg_id]
                     dx_trn, dy_trn, dz_trn = self.trajectory.compute_turn(
-                        leg_phase, turn * 0.5, hip[0], hip[1])
+                        leg_phase, turn * 0.5, hip[0], hip[1]
+                    )
                     dx = dx_fwd + dx_trn
                     dy = dy_trn
                     dz = max(dz_fwd, dz_trn)
@@ -1299,8 +1363,7 @@ class QuadrupedWalker:
                 foot = (nx + dx, ny + dy, nz + dz)
 
                 try:
-                    angles = self.ik.solve(*foot,
-                                           is_front=self.leg_is_front[leg_id])
+                    angles = self.ik.solve(*foot, is_front=self.leg_is_front[leg_id])
                     # Override coxa with locked standing angle to prevent drift
                     angles = (self.locked_coxa_angles[leg_id], angles[1], angles[2])
                 except Exception as e:
@@ -1322,9 +1385,11 @@ class QuadrupedWalker:
                 self._audit_cycle += 1
                 if self._audit_cycle % self._audit_interval == 0:
                     # Compact: cycle, phase, speed, then 12 angles as integers
-                    vals = [str(self._audit_cycle),
-                            f"{self._phase:.2f}",
-                            f"{speed:.1f}"]
+                    vals = [
+                        str(self._audit_cycle),
+                        f"{self._phase:.2f}",
+                        f"{speed:.1f}",
+                    ]
                     for lid in LegID:
                         for cfg in LEG_SERVO_CONFIG[lid]:
                             a = debug_angles.get(cfg.servo_id, 0)
@@ -1342,6 +1407,7 @@ class QuadrupedWalker:
 # ============================================================================
 # KEYBOARD CONTROLLER
 # ============================================================================
+
 
 def run_keyboard_control(walker: QuadrupedWalker):
     """Terminal keyboard control for testing."""
@@ -1377,30 +1443,30 @@ def run_keyboard_control(walker: QuadrupedWalker):
             while True:
                 if select.select([sys.stdin], [], [], 0.1)[0]:
                     key = sys.stdin.read(1)
-                    if key == 'q':
+                    if key == "q":
                         break
-                    elif key == 'w':
+                    elif key == "w":
                         speed = min(1.0, speed + speed_inc)
-                    elif key == 's':
+                    elif key == "s":
                         speed = max(-1.0, speed - speed_inc)
-                    elif key == 'a':
+                    elif key == "a":
                         turn = max(-1.0, turn - 0.3)
-                    elif key == 'd':
+                    elif key == "d":
                         turn = min(1.0, turn + 0.3)
-                    elif key == ' ':
+                    elif key == " ":
                         speed = 0.0
                         turn = 0.0
-                    elif key == '1':
+                    elif key == "1":
                         walker.set_gait(GaitType.TROT)
-                    elif key == '2':
+                    elif key == "2":
                         walker.set_gait(GaitType.WALK)
-                    elif key == '3':
+                    elif key == "3":
                         walker.set_gait(GaitType.PACE)
-                    elif key == 'i':
+                    elif key == "i":
                         print("\n  Identifying servos...")
                         walker.identify_all_servos()
                         print("  Done!\n")
-                    elif key == 't':
+                    elif key == "t":
                         was_running = walker._running
                         if was_running:
                             walker._running = False
@@ -1413,9 +1479,10 @@ def run_keyboard_control(walker: QuadrupedWalker):
                         if was_running:
                             walker._running = True
                             walker._walk_thread = threading.Thread(
-                                target=walker._control_loop, daemon=True)
+                                target=walker._control_loop, daemon=True
+                            )
                             walker._walk_thread.start()
-                    elif key == 'r':
+                    elif key == "r":
                         # Must stop walk loop so bus is free for reads
                         was_running = walker._running
                         if was_running:
@@ -1431,10 +1498,11 @@ def run_keyboard_control(walker: QuadrupedWalker):
                         if was_running:
                             walker._running = True
                             walker._walk_thread = threading.Thread(
-                                target=walker._control_loop, daemon=True)
+                                target=walker._control_loop, daemon=True
+                            )
                             walker._walk_thread.start()
                         print("  Done!\n")
-                    elif key == 'p':
+                    elif key == "p":
                         was_running = walker._running
                         if was_running:
                             walker._running = False
@@ -1446,13 +1514,16 @@ def run_keyboard_control(walker: QuadrupedWalker):
                         if was_running:
                             walker._running = True
                             walker._walk_thread = threading.Thread(
-                                target=walker._control_loop, daemon=True)
+                                target=walker._control_loop, daemon=True
+                            )
                             walker._walk_thread.start()
 
                     walker.set_speed(speed)
                     walker.set_turn(turn)
-                    sys.stdout.write(f"\r  Speed: {speed:+.1f}  Turn: {turn:+.1f}  "
-                                     f"Gait: {walker.gait_type.value}       ")
+                    sys.stdout.write(
+                        f"\r  Speed: {speed:+.1f}  Turn: {turn:+.1f}  "
+                        f"Gait: {walker.gait_type.value}       "
+                    )
                     sys.stdout.flush()
         finally:
             termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
@@ -1462,24 +1533,24 @@ def run_keyboard_control(walker: QuadrupedWalker):
         while True:
             try:
                 cmd = input(f"[spd={speed:+.1f} trn={turn:+.1f}] > ").strip().lower()
-                if cmd == 'q':
+                if cmd == "q":
                     break
-                elif cmd == 'w':
+                elif cmd == "w":
                     speed = min(1.0, speed + speed_inc)
-                elif cmd == 's':
+                elif cmd == "s":
                     speed = max(-1.0, speed - speed_inc)
-                elif cmd == 'a':
+                elif cmd == "a":
                     turn = max(-1.0, turn - 0.3)
-                elif cmd == 'd':
+                elif cmd == "d":
                     turn = min(1.0, turn + 0.3)
-                elif cmd in ('x', ''):
+                elif cmd in ("x", ""):
                     speed = 0.0
                     turn = 0.0
-                elif cmd == '1':
+                elif cmd == "1":
                     walker.set_gait(GaitType.TROT)
-                elif cmd == '2':
+                elif cmd == "2":
                     walker.set_gait(GaitType.WALK)
-                elif cmd == 'i':
+                elif cmd == "i":
                     walker.identify_all_servos()
                 walker.set_speed(speed)
                 walker.set_turn(turn)
@@ -1491,17 +1562,24 @@ def run_keyboard_control(walker: QuadrupedWalker):
 # DIAGNOSTICS
 # ============================================================================
 
+
 def print_diagnostics(walker: QuadrupedWalker):
     """Print IK solution for standing pose."""
     print("\n--- RoboKitty3 Standing Pose Diagnostics ---")
-    print(f"Leg dims: coxa={walker.leg_dims.coxa_length}mm "
-          f"femur={walker.leg_dims.femur_length}mm "
-          f"tibia={walker.leg_dims.tibia_length}mm")
-    print(f"Body: half_length={walker.body_dims.half_length}mm "
-          f"half_width={walker.body_dims.half_width}mm")
+    print(
+        f"Leg dims: coxa={walker.leg_dims.coxa_length}mm "
+        f"femur={walker.leg_dims.femur_length}mm "
+        f"tibia={walker.leg_dims.tibia_length}mm"
+    )
+    print(
+        f"Body: half_length={walker.body_dims.half_length}mm "
+        f"half_width={walker.body_dims.half_width}mm"
+    )
     print(f"Standing height: {walker.gait_cfg.body_height}mm")
-    print(f"Max leg reach: {walker.leg_dims.femur_length + walker.leg_dims.tibia_length}mm "
-          f"(using {walker.gait_cfg.body_height / (walker.leg_dims.femur_length + walker.leg_dims.tibia_length) * 100:.0f}%)")
+    print(
+        f"Max leg reach: {walker.leg_dims.femur_length + walker.leg_dims.tibia_length}mm "
+        f"(using {walker.gait_cfg.body_height / (walker.leg_dims.femur_length + walker.leg_dims.tibia_length) * 100:.0f}%)"
+    )
     print()
 
     for leg_id in LegID:
@@ -1511,18 +1589,21 @@ def print_diagnostics(walker: QuadrupedWalker):
         configs = LEG_SERVO_CONFIG[leg_id]
         joint_names = ["Shoulder", "Femur   ", "Leg     "]
 
-        print(f"  {leg_id.value:12s}  foot=({foot[0]:6.1f}, {foot[1]:6.1f}, {foot[2]:6.1f})"
-              f"  {'FRONT' if is_front else 'REAR'}")
+        print(
+            f"  {leg_id.value:12s}  foot=({foot[0]:6.1f}, {foot[1]:6.1f}, {foot[2]:6.1f})"
+            f"  {'FRONT' if is_front else 'REAR'}"
+        )
         for i, (cfg, name) in enumerate(zip(configs, joint_names)):
             raw = angle_to_raw(angles[i], cfg)
             inv = " INV" if cfg.inverted else ""
-            print(f"    {name} ID{cfg.servo_id:2d}: {angles[i]:+7.1f}deg -> raw={raw:4d}"
-                  f"  (offset={cfg.offset_deg:+.1f}deg{inv})")
+            print(
+                f"    {name} ID{cfg.servo_id:2d}: {angles[i]:+7.1f}deg -> raw={raw:4d}"
+                f"  (offset={cfg.offset_deg:+.1f}deg{inv})"
+            )
     print()
 
 
 def main():
-
     args = _cli_parser()
 
     walker = QuadrupedWalker(
@@ -1543,6 +1624,7 @@ def main():
         print("\nShutting down...")
         walker.disconnect()
         sys.exit(0)
+
     signal.signal(signal.SIGINT, signal_handler)
 
     if args.identify:
