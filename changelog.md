@@ -10,6 +10,8 @@ Versions prior to 2.3 were developed outside of version control and are not incl
 ### Improvements
 
 * Add stream and file based logger
+* Reorganised code base to fit basic python project
+* Added CI actions for code quality checks
 
 ---
 
