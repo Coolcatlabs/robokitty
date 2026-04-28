@@ -1,77 +1,58 @@
 # Changelog
-
 All notable changes to this project are documented in this file.
 
 Versions prior to 2.3 were developed outside of version control and are not included in the Git history. They are documented here to provide context and highlight key project milestones.
 
----
-## [2.4] - Latest
+## [Unreleased]
+### Added
+* Build pipeline to generate Python wheel packages
+* Release pipeline to publish changelog on tag/release
 
-### Improvements
+### Changed
+* Modify pre-commit to execute on every push
 
-* Add stream and file based logger
+## [v2.4.0]
+### Added
+* Stream and file based logger
+* CI actions for code quality checks
+
+### Changed
 * Reorganised code base to fit basic python project
-* Added CI actions for code quality checks
 
----
-
-## [2.3]
-
-### Major Changes
-
+## [v2.3.0]
+### Changed
 * Increased step length from 40 mm to 80 mm
-
 * Reduced cycle time from 2.4 s to 1.6 s
-
 * Each 20 ms control cycle now moves the femur by 3.6 servo units (previously 0.5 units, below AX-12A compliance threshold and resulting in no torque)
-
 * Set compliance margin to 0 on all servos, removing the 1-unit dead zone where no force is applied
-
 * Increased step height from 18 mm to 25 mm to improve ground clearance
 
-### Fixes
-
+### Fixed
 * Corrected movement direction (introduced in version 2.2), ensuring stance phase pushes toward the physical front (-x axis)
 
----
+## [v2.0.0]
+### Added
+* Ground press behaviour
 
-## [2.0]
-
-### Changes
-
-* Added ground press behaviour
+### Changed
 * Removed simulation mode
 
----
-
-## [1.9]
-
-### Features
-
+## [v1.9.0]
+### Added
 * Implemented walk (creep) gait
-* Added body centre-of-mass shifting
+* Body centre-of-mass shifting
 
----
+## [v1.8.0]
+### Added
+* Audit logging
 
-## [1.8]
-
-### Improvements
-
+### Changed
 * Increased gait swing amplitude
-* Added audit logging
 
----
-
-## [1.7]
-
-### Changes
-
+## [v1.7.0]
+### Changed
 * Applied calibrated servo offsets
 
----
-
-## [1.0]
-
-### Initial Release
-
+## [v1.0.0]
+### Added
 * Initial system implementation
