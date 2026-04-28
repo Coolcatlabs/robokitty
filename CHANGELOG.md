@@ -11,6 +11,9 @@ Versions prior to 2.3 were developed outside of version control and are not incl
 ### Changed
 * Modify pre-commit to execute on every push
 
+### Fixed
+* Versioning on tag releases
+
 ## [v2.4.0]
 ### Added
 * Stream and file based logger

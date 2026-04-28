@@ -9,6 +9,11 @@ def _cli_parser() -> argparse.Namespace:
         description=f"RoboKitty IK Walking Controller: {__version__}"
     )
     parser.add_argument(
+        "--version",
+        action="version",
+        version=f"{__package__} {__version__}",
+    )
+    parser.add_argument(
         "--port", default=DEFAULT_PORT, help=f"Serial port (default: {DEFAULT_PORT})"
     )
     parser.add_argument(

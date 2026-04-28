@@ -23,8 +23,12 @@ def setup_package():
         name=DIST_NAME,
         description=DESCRIPTION,
         long_description=LONG_DESCRIPTION,
+        use_scm_version={
+            "version_scheme": "semver-pep440",
+        },
         packages=setuptools.find_packages(),
         python_requires=PYTHON_REQUIRES,
+        setup_requires=["setuptools_scm"],
         install_requires=REQUIRES,
         extras_require={"dev": DEV_REQUIRES},
         entry_points={
