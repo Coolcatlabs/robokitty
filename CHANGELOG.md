@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 Versions prior to 2.3 were developed outside of version control and are not included in the Git history. They are documented here to provide context and highlight key project milestones.
 
 ## [Unreleased]
+### Changed
+* Uplift ax12a driver
 
 ## [v2.5.0]
 ### Added
