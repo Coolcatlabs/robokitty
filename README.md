@@ -61,14 +61,9 @@ Confirm everything is working by calling the helper directly from your terminal:
 robokitty --help
 ```
 
-If connected to the device the following commands are available from the command line:
 ```
 robokitty              # Normal walk mode
-robokitty --stand      # Stand only (calibration)
-robokitty --diag       # IK diagnostics
-robokitty --identify    # Flash servo LEDs
-robokitty --read-pose  # Read positions (torque off)
-robokitty --calibrate  # Pose by hand, compute offsets
+robokitty -g crawl      # crawl gait
 ```
 
 

@@ -1,10 +1,15 @@
 from ._robokitty import QuadrupedWalker
+from ._cli import _cli_parser
 
 
 def main():
-    # args = _cli_parser()
+    args = _cli_parser()
 
-    with QuadrupedWalker() as walker:
+    with QuadrupedWalker(
+        port=args.port,
+        baudrate=args.baud,
+        gait=args.gait,
+    ) as walker:
         walker.loop()
 
 

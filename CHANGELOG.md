@@ -4,8 +4,12 @@ All notable changes to this project are documented in this file.
 Versions prior to 2.3 were developed outside of version control and are not included in the Git history. They are documented here to provide context and highlight key project milestones.
 
 ## [Unreleased]
+### Added
+* Add stand and crawl walk gait
+
 ### Changed
 * Uplift ax12a driver
+* Modify CLI to support new gait
 
 ## [v2.5.0]
 ### Added
@@ -14,6 +18,7 @@ Versions prior to 2.3 were developed outside of version control and are not incl
 
 ### Changed
 * Modify pre-commit to execute on every push
+* Uplift ax12a driver
 
 ### Fixed
 * Versioning on tag releases
