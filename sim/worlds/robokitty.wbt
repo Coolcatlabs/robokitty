@@ -1,0 +1,15 @@
+#VRML_SIM R2025a utf8
+
+WorldInfo {
+  info [
+    "Placeholder Webots world for Robokitty."
+    "Created to bootstrap the Robokitty simulation environment."
+  ]
+  title "Robokitty Bootstrap World"
+}
+Viewpoint {
+}
+Robot {
+  name "robokitty"
+  controller "robokitty_controller"
+}

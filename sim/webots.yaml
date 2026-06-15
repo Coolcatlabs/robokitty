@@ -1,0 +1,5 @@
+type: simulation
+publish: true
+externControllers:
+  - name: controller
+    path: controllers/robokitty_controller

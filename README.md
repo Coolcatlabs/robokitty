@@ -70,3 +70,22 @@ robokitty --identify    # Flash servo LEDs
 robokitty --read-pose  # Read positions (torque off)
 robokitty --calibrate  # Pose by hand, compute offsets
 ```
+
+
+## 🚀 How to Run the Simulation
+To ensure Webots correctly inherits the root repository context and reads the webots.yml file, use one of the following methods to launch the project:
+
+Method 1: Command Line (Recommended)
+Navigate to the root of your cloned repository and launch the world file directly. This forces Webots to use the repository root as its active project directory:
+
+```
+cd sim
+webots worlds/robokitty.wbt
+```
+
+### Method 2: Opening via Webots GUI
+1. Open the Webots application.
+2. Select **File** > **Open World...** from the top menu.
+3. Navigate into the `worlds/` directory of this repo and select `robokitty.wbt`.
+
+> ⚠️ **Note:** Do not use *File > Open Project Directory*. Webots automatically detects the project root when you open the `.wbt` file from this structure.
