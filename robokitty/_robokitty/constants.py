@@ -2,10 +2,6 @@ from enum import Enum
 
 from .config import ServoJointConfig
 
-# Serial config
-DEFAULT_PORT = "/dev/ttyUSB0"
-DEFAULT_BAUD = 1000000
-
 
 class LegID(Enum):
     FL = "FrontLeft"

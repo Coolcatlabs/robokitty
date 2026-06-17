@@ -11,6 +11,7 @@ REQUIRES = [
 
 DEV_REQUIRES = [
     "pre-commit==4.5.*",
+    "RPi.GPIO==0.7.*",
 ]
 
 
