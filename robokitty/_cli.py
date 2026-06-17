@@ -1,6 +1,6 @@
 import argparse
 
-from ._robokitty import DEFAULT_PORT, DEFAULT_BAUD
+from .config import DEFAULT_PORT, DEFAULT_BAUD
 from . import __version__
 
 
@@ -14,7 +14,9 @@ def _cli_parser() -> argparse.Namespace:
         version=f"{__package__} {__version__}",
     )
     parser.add_argument(
-        "--port", default=DEFAULT_PORT, help=f"Serial port (default: {DEFAULT_PORT})"
+        "--port",
+        default=DEFAULT_PORT,
+        help=f"Serial port (default: {DEFAULT_PORT})",
     )
     parser.add_argument(
         "--baud",
@@ -22,29 +24,12 @@ def _cli_parser() -> argparse.Namespace:
         default=DEFAULT_BAUD,
         help=f"Baudrate (default: {DEFAULT_BAUD})",
     )
+
     parser.add_argument(
-        "--dir-pin",
-        type=int,
-        default=None,
-        help="GPIO BCM pin for half-duplex direction",
-    )
-    parser.add_argument(
-        "--stand", action="store_true", help="Stand only (calibration mode)"
-    )
-    parser.add_argument(
-        "--diag", action="store_true", help="Print IK diagnostics and exit"
-    )
-    parser.add_argument(
-        "--identify", action="store_true", help="Flash each servo LED to verify wiring"
-    )
-    parser.add_argument(
-        "--read-pose",
-        action="store_true",
-        help="Read current servo positions (torque off, pose manually)",
-    )
-    parser.add_argument(
-        "--calibrate",
-        action="store_true",
-        help="Pose legs by hand, read positions, compute offsets",
+        "-g",
+        "--gait",
+        choices=["crawl", "walk", "run"],
+        default="crawl",
+        help="Set the quadruped leg movement pattern (default: walk)",
     )
     return parser.parse_args()
