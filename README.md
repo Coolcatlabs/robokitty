@@ -61,9 +61,22 @@ Confirm everything is working by calling the helper directly from your terminal:
 robokitty --help
 ```
 
+### Gait control
 ```
-robokitty              # Normal walk mode
-robokitty -g crawl      # crawl gait
+robokitty gait          # default crawl
+robokitty gait crawl
+robokitty gait walk
+```
+
+### Servo tools
+```
+robokitty servo diagnose <id>   # full register diagnostic
+robokitty servo repair <id>     # attempt software recovery
+```
+
+### Global options
+```
+robokitty --port /dev/ttyUSB0 --baud 1000000 gait crawl
 ```
 
 

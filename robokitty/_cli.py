@@ -25,11 +25,26 @@ def _cli_parser() -> argparse.Namespace:
         help=f"Baudrate (default: {DEFAULT_BAUD})",
     )
 
-    parser.add_argument(
-        "-g",
-        "--gait",
+    subparsers = parser.add_subparsers(dest="command", metavar="command")
+
+    gait = subparsers.add_parser("gait", help="Run a gait pattern")
+    gait.add_argument(
+        "pattern",
         choices=["crawl", "walk", "run"],
         default="crawl",
-        help="Set the quadruped leg movement pattern (default: walk)",
+        nargs="?",
+        help="Leg movement pattern (default: crawl)",
     )
+
+    servo = subparsers.add_parser("servo", help="AX-12A servo tools")
+    servo_sub = servo.add_subparsers(dest="servo_command", metavar="servo_command")
+
+    diagnose = servo_sub.add_parser(
+        "diagnose", help="Print full register diagnostic for a servo"
+    )
+    diagnose.add_argument("id", type=int, help="Servo ID (1–253)")
+
+    repair = servo_sub.add_parser("repair", help="Attempt software repair of a servo")
+    repair.add_argument("id", type=int, help="Servo ID (1–253)")
+
     return parser.parse_args()
