@@ -72,6 +72,7 @@ robokitty gait walk
 ```
 robokitty servo diagnose <id>   # full register diagnostic
 robokitty servo repair <id>     # attempt software recovery
+robokitty servo set-id          # safely change a servo's ID
 ```
 
 ### Global options
