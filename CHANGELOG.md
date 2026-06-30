@@ -6,6 +6,8 @@ Versions prior to 2.3 were developed outside of version control and are not incl
 ## [Unreleased]
 ### Added
 * Add stand and crawl walk gait
+* Add servo ID change utility (`robokitty servo set-id`)
+
 
 ### Changed
 * Uplift ax12a driver
