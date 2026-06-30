@@ -25,9 +25,8 @@ def _prompt_continue(message: str) -> bool:
     while True:
         try:
             response = input(
-                '\nType "continue" and press Enter to proceed, '
-                             "or Ctrl+C to abort: "
-              )
+                '\nType "continue" and press Enter to proceed, or Ctrl+C to abort: '
+            )
         except (KeyboardInterrupt, EOFError):
             print("\n\nAborted.")
             return False

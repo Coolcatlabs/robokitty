@@ -19,12 +19,12 @@ Global options apply to all commands:
 from enum import IntEnum
 
 from ._robokitty import (
-      QuadrupedWalker, 
-      get_servo_metrics, 
-      repair_servo, 
-      set_servo_id, 
-      AX12Interface,
-      )
+    QuadrupedWalker,
+    get_servo_metrics,
+    repair_servo,
+    set_servo_id,
+    AX12Interface,
+)
 from ._cli import _cli_parser
 
 
@@ -79,3 +79,4 @@ def main() -> ExitCode:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
