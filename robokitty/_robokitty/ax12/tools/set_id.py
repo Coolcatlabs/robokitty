@@ -24,20 +24,22 @@ EEPROM_WRITE_DELAY_S = 0.3
 
 def _confirm(prompt: str) -> bool:
     """
-    Display a prompt and wait for [Y/n] confirmation.
-    Returns True on 'y'/Enter, False on 'n' or Ctrl+C.
+    Display a prompt and wait for explicit y/n confirmation.
+    Re-prompts on invalid input. Returns True only on 'y'/'yes',
+    False on 'n'/'no' or Ctrl+C.
     """
     try:
-        response = input(f"\n  {prompt} [Y/n] ").strip().lower()
+        response = input(f"\n  {prompt} [y/N] ").strip().lower()
     except (KeyboardInterrupt, EOFError):
         print("\n\nAborted.")
         return False
-
-    if response in ("", "y", "yes"):
+    if response in ("y", "yes"):
         return True
-
-    print("  Cancelled.")
-    return False
+    if response in ("n", "no"):
+        print("  Cancelled.")
+        return False
+    print("  Please enter 'y' or 'n'.")
+    return _confirm(prompt)
 
 
 def _step_safety_gate() -> bool:
