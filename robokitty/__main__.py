@@ -18,7 +18,13 @@ Global options apply to all commands:
 
 from enum import IntEnum
 
-from ._robokitty import QuadrupedWalker, get_servo_metrics, repair_servo, set_servo_id, AX12Interface
+from ._robokitty import (
+      QuadrupedWalker, 
+      get_servo_metrics, 
+      repair_servo, 
+      set_servo_id, 
+      AX12Interface,
+      )
 from ._cli import _cli_parser
 
 
@@ -65,9 +71,7 @@ def main() -> ExitCode:
                     ExitCode.SUCCESS if repair_servo(ax, args.id) else ExitCode.FAILURE
                 )
             elif args.servo_command == "set-id":
-                return (
-                    ExitCode.SUCCESS if set_servo_id(ax) else ExitCode.FAILURE
-                )
+                return ExitCode.SUCCESS if set_servo_id(ax) else ExitCode.FAILURE
 
     print(f"Unknown command: {args.command}")
     return ExitCode.FAILURE

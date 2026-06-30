@@ -24,8 +24,10 @@ def _prompt_continue(message: str) -> bool:
     print(message)
     while True:
         try:
-            response = input('\nType "continue" and press Enter to proceed, '
-                             "or Ctrl+C to abort: ")
+            response = input(
+                '\nType "continue" and press Enter to proceed, '
+                             "or Ctrl+C to abort: "
+              )
         except (KeyboardInterrupt, EOFError):
             print("\n\nAborted.")
             return False
@@ -80,7 +82,7 @@ def set_servo_id(ax: AX12Interface) -> bool:
         return False
 
     current_id = found[0]
-    print(f"\n  Found 1 servo.")
+    print("\n  Found 1 servo.")
     print(f"  Current ID: {current_id}")
 
     # ── Step 3: Get new ID and confirm ────────────────────────────────────
@@ -134,10 +136,10 @@ def set_servo_id(ax: AX12Interface) -> bool:
     # Verify by pinging the new ID
     print("\n  Verifying...")
     if ax.ping(new_id):
-        print(f"\n  ✅ ID changed successfully.")
+        print("\n  ✅ ID changed successfully.")
         print(f"\n  Previous ID : {current_id}")
         print(f"  New ID      : {new_id} (verified)")
-        print(f"\n  You may now disconnect this servo and connect the next one.")
+        print("\n  You may now disconnect this servo and connect the next one.")
         return True
     else:
         print(f"\n  ❌ Verification failed — no response at new ID {new_id}.")
