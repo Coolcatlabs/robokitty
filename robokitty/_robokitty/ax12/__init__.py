@@ -18,7 +18,7 @@ from .status import StatusPacket, ErrorFlag
 from .instruction import InstructionPacketBuilder
 from .registers import Register
 from .utils import degrees_to_position, to_le_bytes, clamp_position
-from .tools import get_servo_metrics, repair_servo
+from .tools import get_servo_metrics, repair_servo, set_servo_id
 
 __all__ = [
     "AX12Interface",
@@ -32,4 +32,5 @@ __all__ = [
     "clamp_position",
     "get_servo_metrics",
     "repair_servo",
+    "set_servo_id"
 ]
