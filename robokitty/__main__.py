@@ -18,7 +18,7 @@ Global options apply to all commands:
 
 from enum import IntEnum
 
-from ._robokitty import QuadrupedWalker, get_servo_metrics, repair_servo, AX12Interface
+from ._robokitty import QuadrupedWalker, get_servo_metrics, repair_servo, set_servo_id, AX12Interface
 from ._cli import _cli_parser
 
 
@@ -42,8 +42,12 @@ def main() -> ExitCode:
 
     elif args.command == "servo":
         if args.servo_command is None:
-            print("Usage: robokitty servo <diagnose|repair> <id>")
+            print("Usage: robokitty servo <diagnose|repair|set-id> <id>")
             return ExitCode.FAILURE
+
+        if args.servo_command == "set-id":
+            with AX12Interface(args.port, args.baud) as ax:
+                return ExitCode.SUCCESS if set_servo_id(ax) else ExitCode.FAILURE
 
         if not 0 <= args.id <= 253:
             print(f"Error: servo ID must be between 1 and 253, got {args.id}")
@@ -59,6 +63,10 @@ def main() -> ExitCode:
             elif args.servo_command == "repair":
                 return (
                     ExitCode.SUCCESS if repair_servo(ax, args.id) else ExitCode.FAILURE
+                )
+            elif args.servo_command == "set-id":
+                return (
+                    ExitCode.SUCCESS if set_servo_id(ax) else ExitCode.FAILURE
                 )
 
     print(f"Unknown command: {args.command}")
