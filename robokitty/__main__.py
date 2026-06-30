@@ -50,7 +50,7 @@ def main() -> ExitCode:
         if args.servo_command is None:
             print("Usage: robokitty servo <diagnose|repair|set-id> <id>")
             return ExitCode.FAILURE
-        
+
         # set-id is handled before the ID validation below because
         # it discovers the servo ID interactively via bus scan.
         if args.servo_command == "set-id":
