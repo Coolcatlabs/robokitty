@@ -32,5 +32,5 @@ __all__ = [
     "clamp_position",
     "get_servo_metrics",
     "repair_servo",
-    "set_servo_id"
+    "set_servo_id",
 ]
