@@ -23,6 +23,7 @@ from ._robokitty import (
     get_servo_metrics,
     repair_servo,
     set_servo_id,
+    jog_servo,
     AX12Interface,
 )
 from ._cli import _cli_parser
@@ -48,7 +49,7 @@ def main() -> ExitCode:
 
     elif args.command == "servo":
         if args.servo_command is None:
-            print("Usage: robokitty servo <diagnose|repair|set-id> <id>")
+            print("Usage: robokitty servo <diagnose|repair|set-id|jog> <id>")
             return ExitCode.FAILURE
 
         # set-id is handled before the ID validation below because
@@ -71,6 +72,12 @@ def main() -> ExitCode:
             elif args.servo_command == "repair":
                 return (
                     ExitCode.SUCCESS if repair_servo(ax, args.id) else ExitCode.FAILURE
+                )
+            elif args.servo_command == "jog":
+                return (
+                    ExitCode.SUCCESS
+                    if jog_servo(ax, args.id, args.angle)
+                    else ExitCode.FAILURE
                 )
             elif args.servo_command == "set-id":
                 return ExitCode.SUCCESS if set_servo_id(ax) else ExitCode.FAILURE

@@ -47,6 +47,10 @@ def _cli_parser() -> argparse.Namespace:
     repair = servo_sub.add_parser("repair", help="Attempt software repair of a servo")
     repair.add_argument("id", type=int, help="Servo ID (0–253)")
 
+    jog = servo_sub.add_parser("jog", help="Jog a servo to an angle and back")
+    jog.add_argument("id", type=int, help="Servo ID (0–253)")
+    jog.add_argument("angle", type=float, help="Target angle in degrees (0–300)")
+
     servo_sub.add_parser("set-id", help="Safely change a servo's ID (interactive)")
 
     return parser.parse_args()

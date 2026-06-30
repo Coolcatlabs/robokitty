@@ -7,6 +7,7 @@ Versions prior to 2.3 were developed outside of version control and are not incl
 ### Added
 * Add stand and crawl walk gait
 * Add servo ID change utility (`robokitty servo set-id`)
+* Add servo jog utility (`robokitty servo jog <id> <angle>`)
 
 
 ### Changed
