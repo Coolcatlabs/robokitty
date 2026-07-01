@@ -1,5 +1,11 @@
 from .walker import QuadrupedWalker
-from .ax12 import get_servo_metrics, repair_servo, set_servo_id, AX12Interface
+from .ax12 import (
+    get_servo_metrics,
+    repair_servo,
+    set_servo_id,
+    jog_servo,
+    AX12Interface,
+)
 
 __all__ = [
     "AX12Interface",
@@ -7,4 +13,5 @@ __all__ = [
     "get_servo_metrics",
     "repair_servo",
     "set_servo_id",
+    "jog_servo",
 ]
