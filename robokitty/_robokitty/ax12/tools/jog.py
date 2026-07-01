@@ -8,12 +8,8 @@ at each position, then return to the original position.
 import time
 
 from ..ax12 import AX12Interface
-from ..utils import position_to_degrees
+from ..utils import position_to_degrees, _MIN_DEGREES, _MAX_DEGREES
 from .utils import header, row, safe_read
-
-# AX-12A joint range is 0-300 degrees
-MIN_ANGLE = 0.0
-MAX_ANGLE = 300.0
 
 # Speed for jog movements (moderate pace, not jarring)
 JOG_SPEED = 200
@@ -46,48 +42,33 @@ def _mini_diagnostic(ax: AX12Interface, servo_id: int, label: str) -> None:
         row("Load", f"{load_val}  ({direction}, {load_val / 1023 * 100:.0f}%)")
 
 
-def jog_servo(ax: AX12Interface, servo_id: int, target_degrees: float) -> bool:
-    """
-    Jog a single servo to a target angle and back.
-
-    Steps:
-      1. Ping and read the starting position
-      2. Show mini diagnostic at starting position
-      3. Move to the target angle
-      4. Show mini diagnostic at target position
-      5. Return to the original position
-      6. Show final diagnostic to confirm return
-
-    Returns True on success, False on failure.
-    """
-    if not MIN_ANGLE <= target_degrees <= MAX_ANGLE:
-        print(f"\n  ❌ Angle must be between {MIN_ANGLE:.0f}° and {MAX_ANGLE:.0f}°.")
-        return False
-
-    # Step 1: Ping
-    print(f"\n  Jogging servo {servo_id} → {target_degrees:.1f}° → back")
-
+def _step_ping_and_read(ax: AX12Interface, servo_id: int) -> int | None:
+    """Ping the servo and return its current position, or None on failure."""
     if not ax.ping(servo_id):
         print(f"\n  ❌ No response from servo {servo_id}.")
         print("     Check wiring, power supply, and baud rate.")
-        return False
+        return None
 
     start_pos = safe_read(ax.get_position, servo_id, label="Start Position")
     if start_pos is None:
         print("\n  ❌ Could not read starting position.")
-        return False
+        return None
 
-    start_degrees = position_to_degrees(start_pos)
+    return start_pos
 
-    # Step 2: Starting diagnostic
-    _mini_diagnostic(ax, servo_id, f"Before jog — {start_degrees:.1f}°")
 
-    # Step 3: Move to target
-    header(f"Jogging to {target_degrees:.1f}°")
-    print(f"\n  Moving {start_degrees:.1f}° → {target_degrees:.1f}°...")
-
+def _step_move(
+    ax: AX12Interface,
+    servo_id: int,
+    target_degrees: float,
+    target_pos: int | None = None,
+) -> bool:
+    """Move the servo and wait for it to stop. Returns True on success."""
     try:
-        ax.move_degrees(servo_id, target_degrees, speed=JOG_SPEED)
+        if target_pos is not None:
+            ax.move(servo_id, target_pos, speed=JOG_SPEED)
+        else:
+            ax.move_degrees(servo_id, target_degrees, speed=JOG_SPEED)
     except (TimeoutError, ValueError) as e:
         print(f"\n  ❌ Move command failed: {e}")
         return False
@@ -96,29 +77,11 @@ def jog_servo(ax: AX12Interface, servo_id: int, target_degrees: float) -> bool:
         print("  ⚠️  Servo did not stop within timeout.")
 
     time.sleep(SETTLE_DELAY_S)
+    return True
 
-    # Step 4: Diagnostic at target
-    _mini_diagnostic(ax, servo_id, f"At target — {target_degrees:.1f}°")
 
-    # Step 5: Return to start
-    header(f"Returning to {start_degrees:.1f}°")
-    print(f"\n  Moving {target_degrees:.1f}° → {start_degrees:.1f}°...")
-
-    try:
-        ax.move(servo_id, start_pos, speed=JOG_SPEED)
-    except (TimeoutError, ValueError) as e:
-        print(f"\n  ❌ Return move failed: {e}")
-        print(f"     Servo may be stuck at {target_degrees:.1f}°.")
-        return False
-
-    if not ax.wait_for_stop(servo_id, timeout=5.0):
-        print("  ⚠️  Servo did not stop within timeout.")
-
-    time.sleep(SETTLE_DELAY_S)
-
-    # Step 6: Final diagnostic
-    _mini_diagnostic(ax, servo_id, "After jog — returned")
-
+def _step_verify_return(ax: AX12Interface, servo_id: int, start_pos: int) -> None:
+    """Check how close the servo is to its starting position."""
     final_pos = safe_read(ax.get_position, servo_id, label="Final Position")
     if final_pos is not None:
         error = abs(start_pos - final_pos)
@@ -126,5 +89,44 @@ def jog_servo(ax: AX12Interface, servo_id: int, target_degrees: float) -> bool:
             print(f"\n  ✅ Servo returned to start (error: {error} steps).")
         else:
             print(f"\n  ⚠️  Servo did not fully return (error: {error} steps).")
+
+
+def jog_servo(ax: AX12Interface, servo_id: int, target_degrees: float) -> bool:
+    """
+    Jog a single servo to a target angle and back.
+
+    Returns True on success, False on failure.
+    """
+    if not _MIN_DEGREES <= target_degrees <= _MAX_DEGREES:
+        print(
+            f"\n  ❌ Angle must be between {_MIN_DEGREES:.0f}° and {_MAX_DEGREES:.0f}°."
+        )
+        return False
+
+    print(f"\n  Jogging servo {servo_id} → {target_degrees:.1f}° → back")
+
+    start_pos = _step_ping_and_read(ax, servo_id)
+    if start_pos is None:
+        return False
+
+    start_degrees = position_to_degrees(start_pos)
+
+    _mini_diagnostic(ax, servo_id, f"Before jog — {start_degrees:.1f}°")
+
+    header(f"Jogging to {target_degrees:.1f}°")
+    print(f"\n  Moving {start_degrees:.1f}° → {target_degrees:.1f}°...")
+    if not _step_move(ax, servo_id, target_degrees):
+        return False
+
+    _mini_diagnostic(ax, servo_id, f"At target — {target_degrees:.1f}°")
+
+    header(f"Returning to {start_degrees:.1f}°")
+    print(f"\n  Moving {target_degrees:.1f}° → {start_degrees:.1f}°...")
+    if not _step_move(ax, servo_id, start_degrees, target_pos=start_pos):
+        print(f"     Servo may be stuck at {target_degrees:.1f}°.")
+        return False
+
+    _mini_diagnostic(ax, servo_id, "After jog — returned")
+    _step_verify_return(ax, servo_id, start_pos)
 
     return True

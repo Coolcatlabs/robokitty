@@ -9,6 +9,7 @@ from ... import _log as logger
 
 # AX-12A physical range
 _MAX_POSITION = 1023
+_MIN_DEGREES = 0.0
 _MAX_DEGREES = 300.0
 
 # Byte packing

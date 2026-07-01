@@ -71,7 +71,7 @@ robokitty gait walk
 ### Servo tools
 ```
 robokitty servo diagnose <id>   # full register diagnostic
-robokitty servo repair <id>     # attempt software recoveryw
+robokitty servo repair <id>     # attempt software recovery
 robokitty servo set-id          # safely change a servo's ID
 robokitty servo jog <id> <angle>  # jog servo to angle and back
 
